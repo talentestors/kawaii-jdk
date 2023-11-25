@@ -843,8 +843,6 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           files: |
             jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip
-            LICENSE 
-
 
   # windows_x86_build:
   #   name: Windows x86
