@@ -663,7 +663,8 @@ jobs:
     runs-on: "windows-2019"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_windows_x64 != 'false'
-
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -823,13 +824,6 @@ jobs:
           j2sdk-image
         working-directory: jdk/build/windows-x64/images
 
-      - name: Persist test bundles
-        uses: actions/upload-artifact@v3
-        with:
-          name: transient_jdk-windows-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-          path: |
-            jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip
-
       - name: Create Release and Upload Release Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -839,10 +833,12 @@ jobs:
           body: TODO New Release.
           draft: false
           prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: |
             jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: talentestors/kawaii-jdk8
 
   # windows_x86_build:
   #   name: Windows x86
