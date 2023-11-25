@@ -740,20 +740,20 @@ jobs:
           path: ~/${{ env.VS2017_FILENAME }}
           key: vs2017
 
-      # - name: Restore jtreg artifact
-        # id: jtreg_restore
-        # uses: actions/download-artifact@v3
-        # with:
-        #   name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-        #   path: ~/jtreg/
-        # continue-on-error: true
+      - name: Restore jtreg artifact
+        id: jtreg_restore
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        continue-on-error: true
 
-      # - name: Restore jtreg artifact (retry)
-        # uses: actions/download-artifact@v3
-        # with:
-        #   name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-        #   path: ~/jtreg/
-        # if: steps.jtreg_restore.outcome == 'failure'
+      - name: Restore jtreg artifact (retry)
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        if: steps.jtreg_restore.outcome == 'failure'
 
       - name: Uninstall WinSDKs
         run: >
