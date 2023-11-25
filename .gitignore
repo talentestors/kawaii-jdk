@@ -1,0 +1,25 @@
+/build/
+/dist/
+/.idea/
+nbproject/private/
+/webrev
+/.src-rev
+/.jib/
+.DS_Store
+.metadata/
+.recommenders/
+test/nashorn/script/external
+test/nashorn/lib
+NashornProfile.txt
+**/JTreport/**
+**/JTwork/**
+**/.vscode/**
+./vscode
+<<<<<<< HEAD
+<<<<<<< HEAD
+**/.hg/**
+=======
+>>>>>>> 21d9b5e4a7 (add .gitignore)
+=======
+**/.hg/**
+>>>>>>> ac3040480c (oh no!)
