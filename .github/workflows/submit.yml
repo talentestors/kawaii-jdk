@@ -531,7 +531,6 @@ jobs:
 
       - name: show dirictory
         run: |
-          ls -la jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/images/
           ls -la jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/
           ls -la jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot/
 
@@ -717,15 +716,15 @@ jobs:
 
       - name: Pack artifacts
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
+          tar -czf jdk-${{ env.JDK_VERSION }}-macOS-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
         with:
-          name: jdk-macos-x64${{ matrix.artifact }}
+          name: jdk-osx-x64${{ matrix.artifact }}
           retention-days: 1
           path: |
-            jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-macOS-x64_bin${{ matrix.artifact }}.tar.gz
 
   Release:
     name: Upload Release Asset
@@ -773,10 +772,10 @@ jobs:
           name: jdk-${{ env.JDK_VERSION }}-linux-x86
           path: msjdk
 
-      - name: Load artifact windows_86_build
+      - name: Load artifact macOS_x64_build
         uses: actions/download-artifact@v3
         with:
-          name: jdk-macos-x64${{ matrix.artifact }}
+          name: jdk-osx-x64${{ matrix.artifact }}
           path: msjdk
 
       - name: show dirictory
