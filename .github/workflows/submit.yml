@@ -529,10 +529,22 @@ jobs:
         run: make CONF_NAME=linux-${{ matrix.gnu-arch }}-hotspot hotspot
         working-directory: jdk
 
-      - name: show dirictory
+      - name: Show dirictory
         run: |
-          ls -la jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/
-          ls -la jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot/
+          ls -lR jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot/
+
+      - name: Pack artifacts
+        run: |
+          tar -czf jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-${{ matrix.gnu-arch }}-hotspot hotspot
+        working-directory: jdk
+      
+      - name: Upload arartifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot
+          retention-days: 1
+          path: |
+            jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot_bin${{ matrix.artifact }}.tar.gz
 
   linux_x64_build:
     name: Linux x64
