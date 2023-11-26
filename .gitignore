@@ -18,8 +18,5 @@ NashornProfile.txt
 <<<<<<< HEAD
 <<<<<<< HEAD
 **/.hg/**
-=======
->>>>>>> 21d9b5e4a7 (add .gitignore)
-=======
-**/.hg/**
->>>>>>> ac3040480c (oh no!)
+config.log
+configure.log
