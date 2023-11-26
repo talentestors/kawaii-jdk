@@ -5,7 +5,7 @@ on:
     # Sequence of patterns matched against refs/tags
     tags:
       - "*.*.*"
-      - "v" # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
   workflow_dispatch:
     inputs:
       platforms:
@@ -414,13 +414,13 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           name: Release ${{ github.ref_name }}
-          body_path: ${{ github.workflow }}/.github/CHANGELOG.md
+          body_path: .github/CHANGELOG.md
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            jdk-${{ env.JDK_VERSION }}-windows-x64.zip
-            jdk-${{ env.JDK_VERSION }}-windows-x86.zip
+            ./jdk-${{ env.JDK_VERSION }}-windows-x64.zip
+            /home/runner/work/kawaii-jdk8/kawaii-jdk8/jdk-${{ env.JDK_VERSION }}-windows-x86.zip
 
 
 # ------------------------------------------------
