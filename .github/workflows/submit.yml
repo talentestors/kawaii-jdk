@@ -796,8 +796,8 @@ jobs:
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            jdk-${{ env.JDK_VERSION }}-linux-x64_bin.tar.gz
-            jdk-${{ env.JDK_VERSION }}-linux-x86_bin.tar.gz
-            jdk-${{ env.JDK_VERSION }}-osx-x64_bin.tar.gz
+            jdk-${{ env.JDK_VERSION }}-linux-x64_bin${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz
             jdk-${{ env.JDK_VERSION }}-windows-x64.zip
-            jdk-${{ env.JDK_VERSION }}-linux-x86.zip
+            jdk-${{ env.JDK_VERSION }}-windows-x86.zip
