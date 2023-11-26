@@ -376,6 +376,489 @@ jobs:
           path: |
             jdk-${{ env.JDK_VERSION }}-windows-x86.zip
     
+    linux_x64_build:
+    name: Linux x64
+    runs-on: "ubuntu-20.04"
+    needs: prerequisites
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - build release
+          - build debug
+        include:
+          - flavor: build debug
+            flags: --enable-debug
+            artifact: -debug
+
+    env:
+      JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v3
+        with:
+          path: jdk
+
+      - name: Restore jtreg artifact
+        id: jtreg_restore
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        continue-on-error: true
+
+      - name: Restore jtreg artifact (retry)
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        if: steps.jtreg_restore.outcome == 'failure'
+
+      - name: Fix jtreg permissions
+        run: chmod -R a+rx ${HOME}/jtreg/
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install openjdk-8-jdk gcc-9 g++-9 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+
+      - name: Configure
+        run: >
+          bash configure
+          --with-conf-name=linux-x64
+          ${{ matrix.flags }}
+          --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
+          --with-build-number=b00
+          --with-jtreg=${HOME}/jtreg
+          --with-zlib=bundled
+        working-directory: jdk
+
+      - name: Build
+        run: make CONF_NAME=linux-x64 LOG_LEVEL=debug images
+        working-directory: jdk
+
+      - name: Pack artifacts
+        run: |
+          tar -czf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images j2sdk-image
+
+      - name: Persist test bundles
+        uses: actions/upload-artifact@v3
+        with:
+          name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
+          path: |
+            jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz
+
+
+    name: Linux x64
+    runs-on: "ubuntu-20.04"
+    needs:
+      - prerequisites
+      - linux_x64_build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          # - jdk/tier1
+          - langtools/tier1
+          - hotspot/tier1
+        include:
+          # - test: jdk/tier1
+          #   suites: jdk_tier1
+          - test: langtools/tier1
+            suites: langtools_tier1
+          - test: hotspot/tier1
+            suites: hotspot_tier1
+
+    env:
+      JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
+      BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v3
+
+      - name: Restore jtreg artifact
+        id: jtreg_restore
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        continue-on-error: true
+
+      - name: Restore jtreg artifact (retry)
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jtreg/
+        if: steps.jtreg_restore.outcome == 'failure'
+
+      - name: Restore build artifacts
+        id: build_restore
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jdk-linux-x64${{ matrix.artifact }}
+        continue-on-error: true
+
+      - name: Restore build artifacts (retry)
+        uses: actions/download-artifact@v3
+        with:
+          name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
+          path: ~/jdk-linux-x64${{ matrix.artifact }}
+        if: steps.build_restore.outcome == 'failure'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install openjdk-8-jdk
+
+      - name: Unpack jdk
+        run: |
+          mkdir -p "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}"
+          tar -xzf "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}"
+
+      - name: Run tests
+        run: >
+          chmod +x "${HOME}/jtreg/bin/jtreg" &&
+          mkdir test-results &&
+          cd test &&
+          PRODUCT_HOME="${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}/j2sdk-image"
+          JT_HOME="${HOME}/jtreg"
+          ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
+          JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu -Djdk.test.docker.image.version=latest"
+          JTREG_TIMEOUT_FACTOR="4"
+          make
+          "${{ matrix.suites }}"
+
+      - name: Check that all tests executed successfully
+        if: always()
+        run: >
+          if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
+          || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
+            cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
+            exit 1 ;
+          fi
+
+      - name: Create suitable test log artifact name
+        if: always()
+        run: echo "logsuffix=`echo ${{ matrix.test }} | sed -e 's!/!_!'g -e 's! !_!'g`" >> $GITHUB_ENV
+
+      - name: Package test results
+        if: always()
+        working-directory: test-results
+        run: >
+          zip -r9
+          "$HOME/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
+          .
+          -x "*ARCHIVE_BUNDLE.zip"
+        continue-on-error: true
+
+      - name: Persist test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          path: ~/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
+        continue-on-error: true
+
+  linux_additional_build:
+    name: Linux additional
+    runs-on: "ubuntu-20.04"
+    needs:
+      - prerequisites
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_additional != 'false'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - hs x64 build only
+          - hs x64 zero build only
+          - hs x86 minimal build only
+          - hs x86 client build only
+          - hs aarch64 build only
+          - hs arm build only
+          - hs s390x build only
+          - hs ppc64le build only
+        include:
+          - flavor: hs x64 build only
+            flags: --disable-precompiled-headers
+          - flavor: hs x64 zero build only
+            flags: --disable-precompiled-headers --with-jvm-variants=zero
+          - flavor: hs x86 minimal build only
+            flags: --disable-precompiled-headers --with-jvm-variants=minimal1 --with-target-bits=32
+            multilib: true
+          - flavor: hs x86 client build only
+            flags: --disable-precompiled-headers --with-jvm-variants=client --with-target-bits=32
+            multilib: true
+          - flavor: hs aarch64 build only
+            flags: --disable-precompiled-headers
+            debian-arch: arm64
+            gnu-arch: aarch64
+          - flavor: hs arm build only
+            flags: --disable-precompiled-headers --with-jvm-variants=zero
+            debian-arch: armhf
+            gnu-arch: arm
+            gnu-flavor: eabihf
+          - flavor: hs s390x build only
+            flags: --disable-precompiled-headers --with-jvm-variants=zero
+            debian-arch: s390x
+            gnu-arch: s390x
+          - flavor: hs ppc64le build only
+            flags: --disable-precompiled-headers
+            debian-arch: ppc64el
+            gnu-arch: powerpc64le
+
+    env:
+      JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
+      BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v3
+        with:
+          path: jdk
+
+      - name: Update apt
+        run: sudo apt-get update
+
+      - name: Install native host dependencies
+        run: |
+          sudo apt-get install openjdk-8-jdk gcc-9 g++-9 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+        if: matrix.debian-arch == ''
+
+      - name: Install multilib dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install --only-upgrade apt
+          sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib libfreetype6-dev:i386 libxrandr-dev:i386 libxtst-dev:i386 libtiff-dev:i386 libcupsimage2-dev:i386 libcups2-dev:i386 libasound2-dev:i386
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+        if: matrix.multilib != ''
+
+      - name: Install cross-compilation host dependencies
+        run: sudo apt-get install openjdk-8-jdk gcc-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}} g++-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
+        if: matrix.debian-arch != ''
+
+      - name: Cache sysroot
+        id: cache-sysroot
+        uses: actions/cache@v3
+        with:
+          path: ~/sysroot-${{ matrix.debian-arch }}/
+          key: sysroot-${{ matrix.debian-arch }}-${{ hashFiles('jdk/.github/workflows/submit.yml') }}
+        if: matrix.debian-arch != ''
+
+      - name: Install sysroot host dependencies
+        run: sudo apt-get install debootstrap qemu-user-static
+        if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
+
+      - name: Create sysroot
+        run: >
+          sudo qemu-debootstrap
+          --arch=${{ matrix.debian-arch }}
+          --verbose
+          --include=fakeroot,symlinks,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng-dev,libffi-dev
+          --resolve-deps
+          buster
+          ~/sysroot-${{ matrix.debian-arch }}
+          http://httpredir.debian.org/debian/
+        if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
+
+      - name: Prepare sysroot for caching
+        run: |
+          sudo chroot ~/sysroot-${{ matrix.debian-arch }} symlinks -cr .
+          sudo chown ${USER} -R ~/sysroot-${{ matrix.debian-arch }}
+          rm -rf ~/sysroot-${{ matrix.debian-arch }}/{dev,proc,run,sys}
+        if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
+
+      - name: Configure cross compiler
+        run: |
+          echo "CC=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}-gcc-9" >> $GITHUB_ENV
+          echo "CXX=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}-g++-9" >> $GITHUB_ENV
+        if: matrix.debian-arch != ''
+
+      - name: Configure cross specific flags
+        run: >
+          echo "cross_flags=
+          --openjdk-target=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
+          --with-sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}/
+          --with-cups=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
+          --with-freetype-lib=${HOME}/sysroot-${{ matrix.debian-arch }}/usr/lib/${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
+          --with-freetype-include=${HOME}/sysroot-${{ matrix.debian-arch }}/usr/include/freetype2
+          --with-alsa=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
+          --with-fontconfig=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
+          " >> $GITHUB_ENV
+          && echo "cross_conf_env=
+          CFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
+          CXXFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
+          LDFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
+          " >> $GITHUB_ENV
+        if: matrix.debian-arch != ''
+
+      - name: Configure
+        run: >
+          ${{ env.cross_conf_env }}
+          bash configure
+          --with-conf-name=linux-${{ matrix.gnu-arch }}-hotspot
+          ${{ matrix.flags }}
+          ${{ env.cross_flags }}
+          --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
+          --with-build-number=b00
+          --with-boot-jdk=${BOOT_JDK}
+          --disable-headful
+          --with-zlib=bundled
+        working-directory: jdk
+
+      - name: Build
+        run: make CONF_NAME=linux-${{ matrix.gnu-arch }}-hotspot hotspot
+        working-directory: jdk
+
+      - name: show dirictory
+        run: |
+          ls -la
+
+  linux_x86_build:
+    name: Linux x86
+    runs-on: "ubuntu-20.04"
+    needs: prerequisites
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x86 != 'false'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - build release
+
+    # Reduced 32-bit build uses the same boot JDK as 64-bit build
+    env:
+      JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
+      BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v3
+        with:
+          path: jdk
+
+      # Roll in the multilib environment and its dependencies.
+      # Some multilib libraries do not have proper inter-dependencies, so we have to
+      # install their dependencies manually. Additionally, upgrading apt solves
+      # the libc6 installation bugs until base image catches up, see JDK-8260460.
+      - name: Install dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install --only-upgrade apt
+          sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib libfreetype6-dev:i386 libxrandr-dev:i386 libxtst-dev:i386 libtiff-dev:i386 libcupsimage2-dev:i386 libcups2-dev:i386 libasound2-dev:i386
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+
+      - name: Configure
+        run: >
+          bash configure
+          --with-conf-name=linux-x86
+          --with-target-bits=32
+          ${{ matrix.flags }}
+          --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
+          --with-build-number=b00
+          --with-boot-jdk=${BOOT_JDK}
+          --with-zlib=bundled
+        working-directory: jdk
+
+      - name: Build
+        run: make CONF_NAME=linux-x86 images
+        working-directory: jdk
+
+      - name: Pack artifacts
+        run: |
+          tar -czf jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images j2sdk-image
+
+      - name: Persist test bundles
+        uses: actions/upload-artifact@v3
+        with:
+          name: jdk-${{ env.JDK_VERSION }}-linux-x86
+          path: |
+            jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz
+  
+  macos_x64_build:
+    name: macOS x64
+    runs-on: "macos-11"
+    needs: prerequisites
+    if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - build release
+        include:
+          - flavor: build release
+
+    env:
+      JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
+      BOOT_JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).BOOT_JDK_VERSION }}"
+      BOOT_JDK_FILENAME: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_FILENAME }}"
+      BOOT_JDK_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_URL }}"
+      BOOT_JDK_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_SHA256 }}"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v3
+        with:
+          path: jdk
+
+      - name: Restore boot JDK from cache
+        id: bootjdk
+        uses: actions/cache@v3
+        with:
+          path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
+          key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
+
+      - name: Download boot JDK
+        run: |
+          mkdir -p ${HOME}/bootjdk/${BOOT_JDK_VERSION} || true
+          wget -O "${HOME}/bootjdk/${BOOT_JDK_FILENAME}" "${BOOT_JDK_URL}"
+          echo "${BOOT_JDK_SHA256}  ${HOME}/bootjdk/${BOOT_JDK_FILENAME}" | shasum -a 256 -c >/dev/null -
+          tar -xzf "${HOME}/bootjdk/${BOOT_JDK_FILENAME}" -C "${HOME}/bootjdk/${BOOT_JDK_VERSION}"
+          mv "${HOME}/bootjdk/${BOOT_JDK_VERSION}/"*/* "${HOME}/bootjdk/${BOOT_JDK_VERSION}/"
+        if: steps.bootjdk.outputs.cache-hit != 'true'
+
+      - name: Install dependencies
+        run: brew install make
+
+      - name: Select Xcode version
+        run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
+
+      - name: Configure
+        run: >
+          bash configure
+          --with-conf-name=macos-x64
+          ${{ matrix.flags }}
+          --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
+          --with-build-number=b00
+          --with-boot-jdk=${HOME}/bootjdk/${BOOT_JDK_VERSION}/Contents/Home
+          --with-zlib=system
+        working-directory: jdk
+
+      - name: Build
+        run: make CONF_NAME=macos-x64 images
+        working-directory: jdk
+
+      - name: Pack artifacts
+        run: |
+          tar -czf jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
+
+      - name: Persist test bundles
+        uses: actions/upload-artifact@v3
+        with:
+          name: jdk-macos-x64${{ matrix.artifact }}
+          path: |
+            jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz
+
   Release:
     name: Upload Release Asset
     runs-on: "ubuntu-20.04"
@@ -389,6 +872,9 @@ jobs:
       - prerequisites
       - windows_x64_build
       - windows_x86_build
+      - linux_additional_build
+      - linux_x86_build
+      - macos_x64_build
 
     steps:
       - name: Checkout the source
@@ -398,17 +884,29 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x64
-          path: ~/
+          path: ~/msjdk/
 
       - name: Load artifact windows_86_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x86
-          path: ~/
+          path: ~/msjdk/
+
+      - name: Load artifact linux_x86_build
+        uses: actions/download-artifact@v3
+        with:
+          name: jdk-${{ env.JDK_VERSION }}-linux-x86
+          path: ~/msjdk/
+
+      - name: Load artifact windows_86_build
+        uses: actions/download-artifact@v3
+        with:
+          name: jdk-macos-x64${{ matrix.artifact }}
+          path: ~/msjdk/
 
       - name: show dirictory
         run: |
-          ls -la ~/
+          ls -la ~/msjdk/
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
@@ -424,781 +922,4 @@ jobs:
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            ~/jdk-${{ env.JDK_VERSION }}-windows-x64.zip
-            ~/jdk-${{ env.JDK_VERSION }}-windows-x86.zip
-
-
-# ------------------------------------------------
-
-  
-  # linux_x64_build:
-  #   name: Linux x64
-  #   runs-on: "ubuntu-20.04"
-  #   needs: prerequisites
-  #   if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       flavor:
-  #         - build release
-  #         - build debug
-  #       include:
-  #         - flavor: build debug
-  #           flags: --enable-debug
-  #           artifact: -debug
-
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-  #       with:
-  #         path: jdk
-
-  #     - name: Restore jtreg artifact
-  #       id: jtreg_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       continue-on-error: true
-
-  #     - name: Restore jtreg artifact (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       if: steps.jtreg_restore.outcome == 'failure'
-
-  #     - name: Fix jtreg permissions
-  #       run: chmod -R a+rx ${HOME}/jtreg/
-
-  #     - name: Install dependencies
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install openjdk-8-jdk gcc-9 g++-9 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
-  #         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
-
-  #     - name: Configure
-  #       run: >
-  #         bash configure
-  #         --with-conf-name=linux-x64
-  #         ${{ matrix.flags }}
-  #         --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
-  #         --with-build-number=b00
-  #         --with-jtreg=${HOME}/jtreg
-  #         --with-zlib=bundled
-  #       working-directory: jdk
-
-  #     - name: Build
-  #       run: make CONF_NAME=linux-x64 LOG_LEVEL=debug images
-  #       working-directory: jdk
-
-  #     - name: Pack artifacts
-  #       run: |
-  #         tar -czf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images j2sdk-image
-
-  #     - name: Persist test bundles
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: |
-  #           jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz
-
-
-  #   name: Linux x64
-  #   runs-on: "ubuntu-20.04"
-  #   needs:
-  #     - prerequisites
-  #     - linux_x64_build
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       test:
-  #         # - jdk/tier1
-  #         - langtools/tier1
-  #         - hotspot/tier1
-  #       include:
-  #         # - test: jdk/tier1
-  #         #   suites: jdk_tier1
-  #         - test: langtools/tier1
-  #           suites: langtools_tier1
-  #         - test: hotspot/tier1
-  #           suites: hotspot_tier1
-
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-  #     BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-
-  #     - name: Restore jtreg artifact
-  #       id: jtreg_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       continue-on-error: true
-
-  #     - name: Restore jtreg artifact (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       if: steps.jtreg_restore.outcome == 'failure'
-
-  #     - name: Restore build artifacts
-  #       id: build_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jdk-linux-x64${{ matrix.artifact }}
-  #       continue-on-error: true
-
-  #     - name: Restore build artifacts (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jdk-linux-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jdk-linux-x64${{ matrix.artifact }}
-  #       if: steps.build_restore.outcome == 'failure'
-
-  #     - name: Install dependencies
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install openjdk-8-jdk
-
-  #     - name: Unpack jdk
-  #       run: |
-  #         mkdir -p "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}"
-  #         tar -xzf "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}"
-
-  #     - name: Run tests
-  #       run: >
-  #         chmod +x "${HOME}/jtreg/bin/jtreg" &&
-  #         mkdir test-results &&
-  #         cd test &&
-  #         PRODUCT_HOME="${HOME}/jdk-linux-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}/j2sdk-image"
-  #         JT_HOME="${HOME}/jtreg"
-  #         ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
-  #         JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu -Djdk.test.docker.image.version=latest"
-  #         JTREG_TIMEOUT_FACTOR="4"
-  #         make
-  #         "${{ matrix.suites }}"
-
-  #     - name: Check that all tests executed successfully
-  #       if: always()
-  #       run: >
-  #         if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
-  #         || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
-  #           cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
-  #           exit 1 ;
-  #         fi
-
-  #     - name: Create suitable test log artifact name
-  #       if: always()
-  #       run: echo "logsuffix=`echo ${{ matrix.test }} | sed -e 's!/!_!'g -e 's! !_!'g`" >> $GITHUB_ENV
-
-  #     - name: Package test results
-  #       if: always()
-  #       working-directory: test-results
-  #       run: >
-  #         zip -r9
-  #         "$HOME/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
-  #         .
-  #         -x "*ARCHIVE_BUNDLE.zip"
-  #       continue-on-error: true
-
-  #     - name: Persist test results
-  #       if: always()
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         path: ~/linux-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
-  #       continue-on-error: true
-
-  # linux_additional_build:
-  #   name: Linux additional
-  #   runs-on: "ubuntu-20.04"
-  #   needs:
-  #     - prerequisites
-  #   if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_additional != 'false'
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       flavor:
-  #         - hs x64 build only
-  #         - hs x64 zero build only
-  #         - hs x86 minimal build only
-  #         - hs x86 client build only
-  #         - hs aarch64 build only
-  #         - hs arm build only
-  #         - hs s390x build only
-  #         - hs ppc64le build only
-  #       include:
-  #         - flavor: hs x64 build only
-  #           flags: --enable-debug --disable-precompiled-headers
-  #         - flavor: hs x64 zero build only
-  #           flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
-  #         - flavor: hs x86 minimal build only
-  #           flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=minimal1 --with-target-bits=32
-  #           multilib: true
-  #         - flavor: hs x86 client build only
-  #           flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=client --with-target-bits=32
-  #           multilib: true
-  #         - flavor: hs aarch64 build only
-  #           flags: --enable-debug --disable-precompiled-headers
-  #           debian-arch: arm64
-  #           gnu-arch: aarch64
-  #         - flavor: hs arm build only
-  #           flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
-  #           debian-arch: armhf
-  #           gnu-arch: arm
-  #           gnu-flavor: eabihf
-  #         - flavor: hs s390x build only
-  #           flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
-  #           debian-arch: s390x
-  #           gnu-arch: s390x
-  #         - flavor: hs ppc64le build only
-  #           flags: --enable-debug --disable-precompiled-headers
-  #           debian-arch: ppc64el
-  #           gnu-arch: powerpc64le
-
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-  #     BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-  #       with:
-  #         path: jdk
-
-  #     - name: Update apt
-  #       run: sudo apt-get update
-
-  #     - name: Install native host dependencies
-  #       run: |
-  #         sudo apt-get install openjdk-8-jdk gcc-9 g++-9 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
-  #         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
-  #       if: matrix.debian-arch == ''
-
-  #     - name: Install multilib dependencies
-  #       run: |
-  #         sudo dpkg --add-architecture i386
-  #         sudo apt-get update
-  #         sudo apt-get install --only-upgrade apt
-  #         sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib libfreetype6-dev:i386 libxrandr-dev:i386 libxtst-dev:i386 libtiff-dev:i386 libcupsimage2-dev:i386 libcups2-dev:i386 libasound2-dev:i386
-  #         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
-  #       if: matrix.multilib != ''
-
-  #     - name: Install cross-compilation host dependencies
-  #       run: sudo apt-get install openjdk-8-jdk gcc-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}} g++-9-${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
-  #       if: matrix.debian-arch != ''
-
-  #     - name: Cache sysroot
-  #       id: cache-sysroot
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ~/sysroot-${{ matrix.debian-arch }}/
-  #         key: sysroot-${{ matrix.debian-arch }}-${{ hashFiles('jdk/.github/workflows/submit.yml') }}
-  #       if: matrix.debian-arch != ''
-
-  #     - name: Install sysroot host dependencies
-  #       run: sudo apt-get install debootstrap qemu-user-static
-  #       if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
-
-  #     - name: Create sysroot
-  #       run: >
-  #         sudo qemu-debootstrap
-  #         --arch=${{ matrix.debian-arch }}
-  #         --verbose
-  #         --include=fakeroot,symlinks,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng-dev,libffi-dev
-  #         --resolve-deps
-  #         buster
-  #         ~/sysroot-${{ matrix.debian-arch }}
-  #         http://httpredir.debian.org/debian/
-  #       if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
-
-  #     - name: Prepare sysroot for caching
-  #       run: |
-  #         sudo chroot ~/sysroot-${{ matrix.debian-arch }} symlinks -cr .
-  #         sudo chown ${USER} -R ~/sysroot-${{ matrix.debian-arch }}
-  #         rm -rf ~/sysroot-${{ matrix.debian-arch }}/{dev,proc,run,sys}
-  #       if: matrix.debian-arch != '' && steps.cache-sysroot.outputs.cache-hit != 'true'
-
-  #     - name: Configure cross compiler
-  #       run: |
-  #         echo "CC=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}-gcc-9" >> $GITHUB_ENV
-  #         echo "CXX=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}-g++-9" >> $GITHUB_ENV
-  #       if: matrix.debian-arch != ''
-
-  #     - name: Configure cross specific flags
-  #       run: >
-  #         echo "cross_flags=
-  #         --openjdk-target=${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
-  #         --with-sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}/
-  #         --with-cups=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
-  #         --with-freetype-lib=${HOME}/sysroot-${{ matrix.debian-arch }}/usr/lib/${{ matrix.gnu-arch }}-linux-gnu${{ matrix.gnu-flavor}}
-  #         --with-freetype-include=${HOME}/sysroot-${{ matrix.debian-arch }}/usr/include/freetype2
-  #         --with-alsa=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
-  #         --with-fontconfig=${HOME}/sysroot-${{ matrix.debian-arch }}/usr
-  #         " >> $GITHUB_ENV
-  #         && echo "cross_conf_env=
-  #         CFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
-  #         CXXFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
-  #         LDFLAGS=--sysroot=${HOME}/sysroot-${{ matrix.debian-arch }}
-  #         " >> $GITHUB_ENV
-  #       if: matrix.debian-arch != ''
-
-  #     - name: Configure
-  #       run: >
-  #         ${{ env.cross_conf_env }}
-  #         bash configure
-  #         --with-conf-name=linux-${{ matrix.gnu-arch }}-hotspot
-  #         ${{ matrix.flags }}
-  #         ${{ env.cross_flags }}
-  #         --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
-  #         --with-build-number=b00
-  #         --with-boot-jdk=${BOOT_JDK}
-  #         --disable-headful
-  #         --with-zlib=bundled
-  #       working-directory: jdk
-
-  #     - name: Build
-  #       run: make CONF_NAME=linux-${{ matrix.gnu-arch }}-hotspot hotspot
-  #       working-directory: jdk
-
-  # linux_x86_build:
-  #   name: Linux x86
-  #   runs-on: "ubuntu-20.04"
-  #   needs: prerequisites
-  #   if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x86 != 'false'
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       flavor:
-  #         - build release
-
-  #   # Reduced 32-bit build uses the same boot JDK as 64-bit build
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-  #     BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-  #       with:
-  #         path: jdk
-
-  #     - name: Restore jtreg artifact
-  #       id: jtreg_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       continue-on-error: true
-
-  #     - name: Restore jtreg artifact (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       if: steps.jtreg_restore.outcome == 'failure'
-
-  #     - name: Fix jtreg permissions
-  #       run: chmod -R a+rx ${HOME}/jtreg/
-
-  #     # Roll in the multilib environment and its dependencies.
-  #     # Some multilib libraries do not have proper inter-dependencies, so we have to
-  #     # install their dependencies manually. Additionally, upgrading apt solves
-  #     # the libc6 installation bugs until base image catches up, see JDK-8260460.
-  #     - name: Install dependencies
-  #       run: |
-  #         sudo dpkg --add-architecture i386
-  #         sudo apt-get update
-  #         sudo apt-get install --only-upgrade apt
-  #         sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib libfreetype6-dev:i386 libxrandr-dev:i386 libxtst-dev:i386 libtiff-dev:i386 libcupsimage2-dev:i386 libcups2-dev:i386 libasound2-dev:i386
-  #         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 100 --slave /usr/bin/g++ g++ /usr/bin/g++-9
-
-  #     - name: Configure
-  #       run: >
-  #         bash configure
-  #         --with-conf-name=linux-x86
-  #         --with-target-bits=32
-  #         ${{ matrix.flags }}
-  #         --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
-  #         --with-build-number=b00
-  #         --with-boot-jdk=${BOOT_JDK}
-  #         --with-jtreg=${HOME}/jtreg
-  #         --with-zlib=bundled
-  #       working-directory: jdk
-
-  #     - name: Build
-  #       run: make CONF_NAME=linux-x86 images
-  #       working-directory: jdk
-
-  #     - name: Pack artifacts
-  #       run: |
-  #         tar -czf jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images j2sdk-image
-
-  #     - name: Persist test bundles
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: |
-  #           jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz
-
-  #   name: Linux x86
-  #   runs-on: "ubuntu-20.04"
-  #   needs:
-  #     - prerequisites
-  #     - linux_x86_build
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       test:
-  #         # - jdk/tier1
-  #         - langtools/tier1
-  #         - hotspot/tier1
-  #       include:
-  #         # - test: jdk/tier1
-  #         #   suites: jdk_tier1
-  #         - test: langtools/tier1
-  #           suites: langtools_tier1
-  #         - test: hotspot/tier1
-  #           suites: hotspot_tier1
-
-  #   # Reduced 32-bit build uses the same boot JDK as 64-bit build
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-  #     BOOT_JDK: "/usr/lib/jvm/java-8-openjdk-amd64"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-
-  #     - name: Restore jtreg artifact
-  #       id: jtreg_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       continue-on-error: true
-
-  #     - name: Restore jtreg artifact (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       if: steps.jtreg_restore.outcome == 'failure'
-
-  #     - name: Restore build artifacts
-  #       id: build_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jdk-linux-x86${{ matrix.artifact }}
-  #       continue-on-error: true
-
-  #     - name: Restore build artifacts (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jdk-linux-x86${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jdk-linux-x86${{ matrix.artifact }}
-  #       if: steps.build_restore.outcome == 'failure'
-
-  #     - name: Install dependencies
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install openjdk-8-jdk gcc-9-multilib g++-9-multilib
-
-  #     - name: Unpack jdk
-  #       run: |
-  #         mkdir -p "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}"
-  #         tar -xzf "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}"
-
-  #     - name: Build multilib docker image
-  #       if: matrix.test == 'hotspot/tier1'
-  #       run: >
-  #         printf '%s\n%s\n'
-  #         'FROM ubuntu:latest'
-  #         'RUN dpkg --add-architecture i386 && apt-get update && apt-get -y install libc6:i386'
-  #         | docker build -t 'ubuntu-multilib:latest' -
-
-  #     - name: Run tests
-  #       run: >
-  #         chmod +x "${HOME}/jtreg/bin/jtreg" &&
-  #         mkdir test-results &&
-  #         cd test &&
-  #         PRODUCT_HOME="${HOME}/jdk-linux-x86${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x86_bin${{ matrix.artifact }}/j2sdk-image"
-  #         JT_HOME="${HOME}/jtreg"
-  #         ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
-  #         JAVA_ARGS="-Djdk.test.docker.image.name=ubuntu-multilib -Djdk.test.docker.image.version=latest"
-  #         JTREG_TIMEOUT_FACTOR="4"
-  #         make
-  #         "${{ matrix.suites }}"
-
-  #     - name: Check that all tests executed successfully
-  #       if: always()
-  #       run: >
-  #         if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
-  #         || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
-  #           cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
-  #           exit 1 ;
-  #         fi
-
-  #     - name: Create suitable test log artifact name
-  #       if: always()
-  #       run: echo "logsuffix=`echo ${{ matrix.test }} | sed -e 's!/!_!'g -e 's! !_!'g`" >> $GITHUB_ENV
-
-  #     - name: Package test results
-  #       if: always()
-  #       working-directory: test-results
-  #       run: >
-  #         zip -r9
-  #         "$HOME/linux-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
-  #         .
-  #         -x "*ARCHIVE_BUNDLE.zip"
-  #       continue-on-error: true
-
-  #     - name: Persist test results
-  #       if: always()
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         path: ~/linux-x86${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
-  #       continue-on-error: true
-
-  # ===================================================================
-  
-  # macos_x64_build:
-  #   name: macOS x64
-  #   runs-on: "macos-11"
-  #   needs: prerequisites
-  #   if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       flavor:
-  #         - build release
-  #       include:
-  #         - flavor: build release
-
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-  #     BOOT_JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).BOOT_JDK_VERSION }}"
-  #     BOOT_JDK_FILENAME: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_FILENAME }}"
-  #     BOOT_JDK_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_URL }}"
-  #     BOOT_JDK_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_SHA256 }}"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-  #       with:
-  #         path: jdk
-
-  #     - name: Restore boot JDK from cache
-  #       id: bootjdk
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
-  #         key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
-
-  #     - name: Download boot JDK
-  #       run: |
-  #         mkdir -p ${HOME}/bootjdk/${BOOT_JDK_VERSION} || true
-  #         wget -O "${HOME}/bootjdk/${BOOT_JDK_FILENAME}" "${BOOT_JDK_URL}"
-  #         echo "${BOOT_JDK_SHA256}  ${HOME}/bootjdk/${BOOT_JDK_FILENAME}" | shasum -a 256 -c >/dev/null -
-  #         tar -xzf "${HOME}/bootjdk/${BOOT_JDK_FILENAME}" -C "${HOME}/bootjdk/${BOOT_JDK_VERSION}"
-  #         mv "${HOME}/bootjdk/${BOOT_JDK_VERSION}/"*/* "${HOME}/bootjdk/${BOOT_JDK_VERSION}/"
-  #       if: steps.bootjdk.outputs.cache-hit != 'true'
-
-  #     - name: Restore jtreg artifact
-  #       id: jtreg_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       continue-on-error: true
-
-  #     - name: Restore jtreg artifact (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       if: steps.jtreg_restore.outcome == 'failure'
-
-  #     - name: Fix jtreg permissions
-  #       run: chmod -R a+rx ${HOME}/jtreg/
-
-  #     - name: Install dependencies
-  #       run: brew install make
-
-  #     - name: Select Xcode version
-  #       run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
-
-  #     - name: Configure
-  #       run: >
-  #         bash configure
-  #         --with-conf-name=macos-x64
-  #         ${{ matrix.flags }}
-  #         --with-user-release-suffix=${GITHUB_ACTOR}-${GITHUB_SHA}
-  #         --with-build-number=b00
-  #         --with-boot-jdk=${HOME}/bootjdk/${BOOT_JDK_VERSION}/Contents/Home
-  #         --with-jtreg=${HOME}/jtreg
-  #         --with-zlib=system
-  #       working-directory: jdk
-
-  #     - name: Build
-  #       run: make CONF_NAME=macos-x64 images
-  #       working-directory: jdk
-
-  #     - name: Pack artifacts
-  #       run: |
-  #         tar -czf jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
-
-  #     - name: Persist test bundles
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: |
-  #           jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz
-
-
-  #   name: macOS x64
-  #   runs-on: "macos-11"
-  #   needs:
-  #     - prerequisites
-  #     - macos_x64_build
-
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       test:
-  #         # - jdk/tier1
-  #         - langtools/tier1
-  #         - hotspot/tier1
-  #       include:
-  #         # - test: jdk/tier1
-  #         #   suites: jdk_tier1
-  #         - test: langtools/tier1
-  #           suites: langtools_tier1
-  #         - test: hotspot/tier1
-  #           suites: hotspot_tier1
-
-  #   env:
-  #     JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
-  #     BOOT_JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).BOOT_JDK_VERSION }}"
-  #     BOOT_JDK_FILENAME: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_FILENAME }}"
-  #     BOOT_JDK_URL: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_URL }}"
-  #     BOOT_JDK_SHA256: "${{ fromJson(needs.prerequisites.outputs.dependencies).MACOS_X64_BOOT_JDK_SHA256 }}"
-
-  #   steps:
-  #     - name: Checkout the source
-  #       uses: actions/checkout@v3
-
-  #     - name: Restore boot JDK from cache
-  #       id: bootjdk
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ~/bootjdk/${{ env.BOOT_JDK_VERSION }}
-  #         key: bootjdk-${{ runner.os }}-${{ env.BOOT_JDK_VERSION }}-${{ env.BOOT_JDK_SHA256 }}-v1
-
-  #     - name: Download boot JDK
-  #       run: |
-  #         mkdir -p ${HOME}/bootjdk/${BOOT_JDK_VERSION} || true
-  #         wget -O "${HOME}/bootjdk/${BOOT_JDK_FILENAME}" "${BOOT_JDK_URL}"
-  #         echo "${BOOT_JDK_SHA256}  ${HOME}/bootjdk/${BOOT_JDK_FILENAME}" | shasum -a 256 -c >/dev/null -
-  #         tar -xzf "${HOME}/bootjdk/${BOOT_JDK_FILENAME}" -C "${HOME}/bootjdk/${BOOT_JDK_VERSION}"
-  #         mv "${HOME}/bootjdk/${BOOT_JDK_VERSION}/"*/* "${HOME}/bootjdk/${BOOT_JDK_VERSION}/"
-  #       if: steps.bootjdk.outputs.cache-hit != 'true'
-
-  #     - name: Restore jtreg artifact
-  #       id: jtreg_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       continue-on-error: true
-
-  #     - name: Restore jtreg artifact (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jtreg_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jtreg/
-  #       if: steps.jtreg_restore.outcome == 'failure'
-
-  #     - name: Restore build artifacts
-  #       id: build_restore
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jdk-macos-x64${{ matrix.artifact }}
-  #       continue-on-error: true
-
-  #     - name: Restore build artifacts (retry)
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: transient_jdk-macos-x64${{ matrix.artifact }}_${{ needs.prerequisites.outputs.bundle_id }}
-  #         path: ~/jdk-macos-x64${{ matrix.artifact }}
-  #       if: steps.build_restore.outcome == 'failure'
-
-  #     - name: Unpack jdk
-  #       run: |
-  #         mkdir -p "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}"
-  #         tar -xzf "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz" -C "${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}"
-
-  #     - name: Install dependencies
-  #       run: brew install make
-
-  #     - name: Select Xcode version
-  #       run: sudo xcode-select --switch /Applications/Xcode_11.7.app/Contents/Developer
-
-  #     - name: Run tests
-  #       run: >
-  #         chmod +x "${HOME}/jtreg/bin/jtreg" &&
-  #         mkdir test-results &&
-  #         cd test &&
-  #         PRODUCT_HOME="${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}/j2sdk-image"
-  #         JT_HOME="${HOME}/jtreg"
-  #         ALT_OUTPUTDIR="${GITHUB_WORKSPACE}/test-results"
-  #         JTREG_TIMEOUT_FACTOR="4"
-  #         gmake
-  #         "${{ matrix.suites }}"
-
-  #     - name: Check that all tests executed successfully
-  #       if: always()
-  #       run: >
-  #         if cat test-results/testoutput/*/exitcode.txt | grep -q -v '^0$'
-  #         || ! cat test-results/testoutput/*/Stats.txt | grep -q 'fail=0' ; then
-  #           cat test-results/testoutput/*/JTreport/text/{newfailures,other_errors}.txt ;
-  #           exit 1 ;
-  #         fi
-
-  #     - name: Create suitable test log artifact name
-  #       if: always()
-  #       run: echo "logsuffix=`echo ${{ matrix.test }} | sed -e 's!/!_!'g -e 's! !_!'g`" >> $GITHUB_ENV
-
-  #     - name: Package test results
-  #       if: always()
-  #       working-directory: test-results
-  #       run: >
-  #         zip -r9
-  #         "$HOME/macos-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip"
-  #         .
-  #         -x "*ARCHIVE_BUNDLE.zip"
-  #       continue-on-error: true
-
-  #     - name: Persist test results
-  #       if: always()
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         path: ~/macos-x64${{ matrix.artifact }}_testresults_${{ env.logsuffix }}.zip
-  #       continue-on-error: true
+            ~/msjdk/*

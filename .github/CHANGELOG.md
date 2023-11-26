@@ -1,8 +1,14 @@
 # TODO New Release
 
-## Test11
+## Alpha Test
 
-Actiont Test.
+Action Test.
 
-- windows_64
-- windows_86
+version 0.1.0-alpha
+
+### include
+
+- windows_x64
+- windows_x86
+- linux_x86
+- macos_x64
