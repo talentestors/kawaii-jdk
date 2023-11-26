@@ -751,35 +751,35 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x64
-          path: ~/msjdk/
+          path: .
 
       - name: Load artifact windows_86_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x86
-          path: ~/msjdk/
+          path: .
 
       - name: Load artifact linux_x64_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-linux-x64${{ matrix.artifact }}
-          path: ~/msjdk/
+          path: .
 
       - name: Load artifact linux_x86_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-linux-x86
-          path: ~/msjdk/
+          path: .
 
       - name: Load artifact windows_86_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-macos-x64${{ matrix.artifact }}
-          path: ~/msjdk/
+          path: .
 
       - name: show dirictory
         run: |
-          ls -la ~/msjdk/
+          ls -la 
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
@@ -796,5 +796,8 @@ jobs:
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            msjdk/*.zip
-            msjdk/*.tar.gz
+            jdk-${{ env.JDK_VERSION }}-linux-x64_bin.tar.gz
+            jdk-${{ env.JDK_VERSION }}-linux-x86_bin.tar.gz
+            jdk-${{ env.JDK_VERSION }}-osx-x64_bin.tar.gz
+            jdk-${{ env.JDK_VERSION }}-windows-x64.zip
+            jdk-${{ env.JDK_VERSION }}-linux-x86.zip
