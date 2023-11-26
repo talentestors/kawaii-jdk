@@ -74,8 +74,6 @@ jobs:
     runs-on: "windows-2019"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_windows_x64 != 'false'
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -383,6 +381,8 @@ jobs:
     runs-on: "ubuntu-20.04"
     if: always()
     continue-on-error: true
+    permissions:
+      contents: write
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MAJOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MINOR_VERSION }}.${{ fromJson(needs.prerequisites.outputs.dependencies).JDK_MICRO_VERSION }}"
     needs:
@@ -405,12 +405,17 @@ jobs:
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x86
           path: ~/
-  
+
+      - name: show dirictory
+        run: |
+          ls -la ~/
+
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_REPOSITORY: talentestors/kawaii-jdk8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           name: Release ${{ github.ref_name }}
