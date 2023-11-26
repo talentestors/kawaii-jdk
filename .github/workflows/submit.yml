@@ -399,12 +399,14 @@ jobs:
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x64
           path: jdk-${{ env.JDK_VERSION }}-windows-x64.zip
+          run: ls;
 
       - name: Load artifact windows_86_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x86
           path: jdk-${{ env.JDK_VERSION }}-windows-x86.zip
+          run: ls;
   
       - name: Upload Release
         uses: softprops/action-gh-release@v1
