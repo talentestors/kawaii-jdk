@@ -398,14 +398,14 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x64
-          path: jdk-${{ env.JDK_VERSION }}-windows-x64.zip
+          path: /
           run: ls;
 
       - name: Load artifact windows_86_build
         uses: actions/download-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x86
-          path: jdk-${{ env.JDK_VERSION }}-windows-x86.zip
+          path: /
           run: ls;
   
       - name: Upload Release
@@ -421,8 +421,8 @@ jobs:
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            ./jdk-${{ env.JDK_VERSION }}-windows-x64.zip
-            /home/runner/work/kawaii-jdk8/kawaii-jdk8/jdk-${{ env.JDK_VERSION }}-windows-x86.zip
+            /jdk-${{ env.JDK_VERSION }}-windows-x64.zip
+            /jdk-${{ env.JDK_VERSION }}-windows-x86.zip
 
 
 # ------------------------------------------------
