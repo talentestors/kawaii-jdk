@@ -1,4 +1,4 @@
-name: Pre-submit tests
+name: Pre-release build
 
 on:
   push:
@@ -368,7 +368,7 @@ jobs:
           j2sdk-image
         working-directory: jdk/build/windows-x86/images
 
-      - name: Persist test bundles
+      - name: Upload arartifact
         uses: actions/upload-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-windows-x86
@@ -531,7 +531,7 @@ jobs:
 
       - name: show dirictory
         run: |
-          ls -la
+          ls -la jdk
 
   linux_x64_build:
     name: Linux x64
@@ -573,14 +573,16 @@ jobs:
       - name: Build
         run: make CONF_NAME=linux-x64 LOG_LEVEL=debug images
         working-directory: jdk
+
       - name: Pack artifacts
         run: |
           tar -czf jdk-${{ env.JDK_VERSION }}-linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images j2sdk-image
 
-      - name: Persist test bundles
+      - name: Upload arartifact
         uses: actions/upload-artifact@v3
         with:
           name: jdk-linux-x64${{ matrix.artifact }}
+          retention-days: 1
           path: |
             jdk-${{ env.JDK_VERSION }}-linux-x64_bin${{ matrix.artifact }}.tar.gz
 
@@ -639,10 +641,11 @@ jobs:
         run: |
           tar -czf jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images j2sdk-image
 
-      - name: Persist test bundles
+      - name: Upload arartifact
         uses: actions/upload-artifact@v3
         with:
           name: jdk-${{ env.JDK_VERSION }}-linux-x86
+          retention-days: 1
           path: |
             jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz
   
@@ -714,10 +717,11 @@ jobs:
         run: |
           tar -czf jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image
 
-      - name: Persist test bundles
+      - name: Upload arartifact
         uses: actions/upload-artifact@v3
         with:
           name: jdk-macos-x64${{ matrix.artifact }}
+          retention-days: 1
           path: |
             jdk-${{ env.JDK_VERSION }}-osx-x64_bin${{ matrix.artifact }}.tar.gz
 
@@ -735,6 +739,7 @@ jobs:
       - windows_x64_build
       - windows_x86_build
       - linux_additional_build
+      - linux_x64_build
       - linux_x86_build
       - macos_x64_build
 
@@ -787,7 +792,9 @@ jobs:
           name: Release ${{ github.ref_name }}
           body_path: .github/CHANGELOG.md
           draft: false
+          fail_on_unmatched_files: true
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            ~/msjdk/*
+            msjdk/*.zip
+            msjdk/*.tar.gz
