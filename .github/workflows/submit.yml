@@ -214,8 +214,8 @@ jobs:
           $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
           zip -r9
           "${{ github.workspace }}/jdk-${{ env.JDK_VERSION }}-windows-x64.zip"
-          j2sdk-image/*
-        working-directory: jdk/build/windows-x64/images
+          ./
+        working-directory: jdk/build/windows-x64/images/j2sdk-image
       
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
@@ -365,8 +365,8 @@ jobs:
           $env:Path = "$HOME\cygwin\cygwin64\bin;$env:Path" ;
           zip -r9
           "${{ github.workspace }}/jdk-${{ env.JDK_VERSION }}-windows-x86.zip"
-          j2sdk-image/*
-        working-directory: jdk/build/windows-x86/images
+          ./
+        working-directory: jdk/build/windows-x86/images/j2sdk-image
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
@@ -535,7 +535,7 @@ jobs:
 
       - name: Pack artifacts
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot dist/*
+          tar -czf jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot/dist/ ./ 
       
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
@@ -588,7 +588,7 @@ jobs:
 
       - name: Pack artifacts
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images j2sdk-image/*
+          tar -czf jdk-${{ env.JDK_VERSION }}-linux-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x64/images/j2sdk-image/ ./
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
@@ -651,7 +651,7 @@ jobs:
 
       - name: Pack artifacts
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images j2sdk-image/*
+          tar -czf jdk-${{ env.JDK_VERSION }}-linux-x86_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-x86/images/j2sdk-image/ ./
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
@@ -727,7 +727,7 @@ jobs:
 
       - name: Pack artifacts
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-macOS-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images j2sdk-image/*
+          tar -czf jdk-${{ env.JDK_VERSION }}-macOS-x64_bin${{ matrix.artifact }}.tar.gz -C jdk/build/macos-x64/images/j2sdk-image/ ./
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
