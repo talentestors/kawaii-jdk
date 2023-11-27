@@ -759,34 +759,9 @@ jobs:
       - name: Checkout the source
         uses: actions/checkout@v3
         
-      - name: Load artifact windows_x64_build
+      - name: Load artifact all
         uses: actions/download-artifact@v3
         with:
-          name: jdk-${{ env.JDK_VERSION }}-windows-x64
-          path: msjdk
-
-      - name: Load artifact windows_86_build
-        uses: actions/download-artifact@v3
-        with:
-          name: jdk-${{ env.JDK_VERSION }}-windows-x86
-          path: msjdk
-
-      - name: Load artifact linux_x64_build
-        uses: actions/download-artifact@v3
-        with:
-          name: jdk-linux-x64${{ matrix.artifact }}
-          path: msjdk
-
-      - name: Load artifact linux_x86_build
-        uses: actions/download-artifact@v3
-        with:
-          name: jdk-${{ env.JDK_VERSION }}-linux-x86
-          path: msjdk
-
-      - name: Load artifact macOS_x64_build
-        uses: actions/download-artifact@v3
-        with:
-          name: jdk-osx-x64${{ matrix.artifact }}
           path: msjdk
 
       - name: show dirictory
