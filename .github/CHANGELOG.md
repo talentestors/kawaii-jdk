@@ -13,3 +13,4 @@ version tag 0.3.beta-0
 - linux_x64
 - linux_x86
 - macos_x64
+- linux_additional_hospot
