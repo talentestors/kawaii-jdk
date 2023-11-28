@@ -397,37 +397,37 @@ jobs:
           - hs ppc64le build only
         include:
           - flavor: hs x64 build only
-            name:  _x64
+            name:  x64
             flags: --disable-precompiled-headers
           - flavor: hs x64 zero build only
-            name:  _x64_zero
+            name:  x64_zero
             flags: --disable-precompiled-headers --with-jvm-variants=zero
           - flavor: hs x86 minimal build only
-            name:  _x86_minimal
+            name:  x86_minimal
             flags: --disable-precompiled-headers --with-jvm-variants=minimal1 --with-target-bits=32
             multilib: true
           - flavor: hs x86 client build only
-            name:  _x86_client
+            name:  x86_client
             flags: --disable-precompiled-headers --with-jvm-variants=client --with-target-bits=32
             multilib: true
           - flavor: hs aarch64 build only
-            name:  _aarch64
+            name:  aarch64
             flags: --disable-precompiled-headers
             debian-arch: arm64
             gnu-arch: aarch64
           - flavor: hs arm build only
-            name:  _arm
+            name:  arm
             flags: --disable-precompiled-headers --with-jvm-variants=zero
             debian-arch: armhf
             gnu-arch: arm
             gnu-flavor: eabihf
           - flavor: hs s390x build only
-            name:  _s390x
+            name:  s390x
             flags: --disable-precompiled-headers --with-jvm-variants=zero
             debian-arch: s390x
             gnu-arch: s390x
           - flavor: hs ppc64le build only
-            name:  _ppc64le
+            name:  ppc64le
             flags: --disable-precompiled-headers
             debian-arch: ppc64el
             gnu-arch: powerpc64le
