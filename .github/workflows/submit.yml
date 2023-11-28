@@ -783,5 +783,5 @@ jobs:
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            msjdk/*.tar.gz
-            msjdk/*.zip
+            msjdk/*/*.tar.gz
+            msjdk/*/*.zip
