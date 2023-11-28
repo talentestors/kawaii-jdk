@@ -397,29 +397,37 @@ jobs:
           - hs ppc64le build only
         include:
           - flavor: hs x64 build only
+            name:  _x64
             flags: --disable-precompiled-headers
           - flavor: hs x64 zero build only
+            name:  _x64_zero
             flags: --disable-precompiled-headers --with-jvm-variants=zero
           - flavor: hs x86 minimal build only
+            name:  _x86_minimal
             flags: --disable-precompiled-headers --with-jvm-variants=minimal1 --with-target-bits=32
             multilib: true
           - flavor: hs x86 client build only
+            name:  _x86_client
             flags: --disable-precompiled-headers --with-jvm-variants=client --with-target-bits=32
             multilib: true
           - flavor: hs aarch64 build only
+            name:  _aarch64
             flags: --disable-precompiled-headers
             debian-arch: arm64
             gnu-arch: aarch64
           - flavor: hs arm build only
+            name:  _arm
             flags: --disable-precompiled-headers --with-jvm-variants=zero
             debian-arch: armhf
             gnu-arch: arm
             gnu-flavor: eabihf
           - flavor: hs s390x build only
+            name:  _s390x
             flags: --disable-precompiled-headers --with-jvm-variants=zero
             debian-arch: s390x
             gnu-arch: s390x
           - flavor: hs ppc64le build only
+            name:  _ppc64le
             flags: --disable-precompiled-headers
             debian-arch: ppc64el
             gnu-arch: powerpc64le
@@ -535,15 +543,15 @@ jobs:
 
       - name: Pack artifacts
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot/dist/ ./ 
+          tar -czf jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.name }}-hotspot_bin${{ matrix.artifact }}.tar.gz -C jdk/build/linux-${{ matrix.gnu-arch }}-hotspot/hotspot/dist/ ./ 
       
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
         with:
-          name: jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot
+          name: jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.name }}-hotspot
           retention-days: 1
           path: |
-            jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.gnu-arch }}-hotspot_bin${{ matrix.artifact }}.tar.gz
+            jdk-${{ env.JDK_VERSION }}-linux-${{ matrix.name }}-hotspot_bin${{ matrix.artifact }}.tar.gz
 
   linux_x64_build:
     name: Linux x64
