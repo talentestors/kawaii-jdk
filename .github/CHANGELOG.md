@@ -4,7 +4,7 @@
 
 Action Test.
 
-version tag 0.3.beta-3
+version tag 0.3.beta-4
 
 #### include
 
