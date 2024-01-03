@@ -52,9 +52,9 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       linux-x64: ${{ steps.include.outputs.linux-x64 }}
-      linux-x86: ${{ steps.include.outputs.linux-x86 }}
-      macos-x64: ${{ steps.include.outputs.macos-x64 }}
-      windows-x64: ${{ steps.include.outputs.windows-x64 }}
+      # linux-x86: ${{ steps.include.outputs.linux-x86 }}
+      # macos-x64: ${{ steps.include.outputs.macos-x64 }}
+      # windows-x64: ${{ steps.include.outputs.windows-x64 }}
 
     steps:
         # This function must be inlined in main.yml, or we'd be forced to checkout the repo
@@ -115,7 +115,7 @@ jobs:
     uses: ./.github/workflows/build-linux.yml
     with:
       platform: linux-x64
-      apt-gcc-version: '11.2.0-1ubuntu1~20.04'
+      apt-gcc-version: '11'
     # The linux-x64 jdk bundle is used as buildjdk for the cross-compile job
     if: needs.select.outputs.linux-x64 == 'true'
 
