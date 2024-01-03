@@ -33,9 +33,9 @@ on:
   workflow_dispatch:
     inputs:
       platforms:
-        description: 'Platform(s) to execute on (comma separated, e.g. "linux-x64, macos, aarch64")'
+        description: 'Platform(s) to execute on (comma separated, e.g. "linux-x64, macos")'
         required: true
-        default: 'linux-x64, linux-x86, linux-x64-variants, linux-cross-compile, macos-x64, macos-aarch64, windows-x64, windows-aarch64'
+        default: 'linux-x64, linux-x86 macos-x64, macos-aarch64, windows-x64'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -115,9 +115,9 @@ jobs:
     uses: ./.github/workflows/build-linux.yml
     with:
       platform: linux-x64
-      apt-gcc-version: '10=10.3.0-1ubuntu1~20.04'
+      apt-gcc-version: '11.2.0-1ubuntu1~20.04'
     # The linux-x64 jdk bundle is used as buildjdk for the cross-compile job
-    if: needs.select.outputs.linux-x64 == 'true' || needs.select.outputs.linux-cross-compile == 'true'
+    if: needs.select.outputs.linux-x64 == 'true'
 
   build-linux-x86:
     name: linux-x86
