@@ -41,7 +41,7 @@ on:
       debug-levels:
         required: false
         type: string
-        default: '[ "debug", "release" ]'
+        default: '[ "release" ]'
       msvc-toolset-version:
         required: true
         type: string
@@ -64,12 +64,6 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        debug-level: ${{ fromJSON(inputs.debug-levels) }}
-        include:
-          - debug-level: debug
-            flags: --with-debug-level=fastdebug
-            suffix: -debug
 
     steps:
       - name: 'Checkout the JDK source'
@@ -83,14 +77,6 @@ jobs:
         uses: ./.github/actions/get-bootjdk
         with:
           platform: windows-x64
-
-      - name: 'Get JTReg'
-        id: jtreg
-        uses: ./.github/actions/get-jtreg
-
-      - name: 'Get GTest'
-        id: gtest
-        uses: ./.github/actions/get-gtest
 
       - name: 'Check toolchain installed'
         id: toolchain-check
@@ -120,9 +106,6 @@ jobs:
           ${{ matrix.flags }}
           --with-version-opt=${GITHUB_ACTOR}-${GITHUB_SHA}
           --with-boot-jdk=${{ steps.bootjdk.outputs.path }}
-          --with-jtreg=${{ steps.jtreg.outputs.path }}
-          --with-gtest=${{ steps.gtest.outputs.path }}
-          --enable-jtreg-failure-handler
           --with-msvc-toolset-version=${{ inputs.msvc-toolset-version }}
           ${{ inputs.extra-conf-options }}
         env:
@@ -136,10 +119,8 @@ jobs:
         with:
           make-target: '${{ inputs.make-target }}'
           platform: ${{ inputs.platform }}
-          debug-suffix: '${{ matrix.suffix }}'
 
       - name: 'Upload bundles'
         uses: ./.github/actions/upload-bundles
         with:
           platform: ${{ inputs.platform }}
-          debug-suffix: '${{ matrix.suffix }}'
