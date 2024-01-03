@@ -51,10 +51,10 @@ on:
       apt-extra-packages:
         required: false
         type: string
-      dependencies:
+      JDK_VERSION:
         required: false
         type: string
-        default: '[]'
+        default: '17-0-8-1'
 
 jobs:
   build-linux:
@@ -63,9 +63,6 @@ jobs:
 
     strategy:
       fail-fast: false
-
-    env:
-      JDK_VERSION: "${{ fromJson(inputs.platform).DEFAULT_VERSION_FEATURE }}-${{ fromJson(inputs.platform).DEFAULT_VERSION_INTERIM }}-${{ fromJson(inputs.platform).DEFAULT_VERSION_UPDATE }}-${{ fromJson(inputs.platform).DEFAULT_VERSION_PATCH }}"
     
     steps:
       - name: 'Checkout the JDK source'
@@ -121,7 +118,7 @@ jobs:
      
       - name: 'Pack artifacts'
         run: |
-          tar -czf jdk-${{ env.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C jdk/build/*/images/ ./
+          tar -czf jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C jdk/build/*/images/ ./
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
@@ -129,4 +126,4 @@ jobs:
           name: jdk-${{ inputs.platform }}
           retention-days: 1
           path: |
-            jdk-${{ env.JDK_VERSION }}-${{ inputs.platform }}.tar.gz
+            jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz
