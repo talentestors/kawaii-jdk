@@ -124,7 +124,15 @@ jobs:
           make-target: '${{ inputs.make-target }}'
           platform: ${{ inputs.platform }}
 
-      - name: 'Upload bundles'
-        uses: ./.github/actions/upload-bundles
+      - name: 'Pack artifacts'
+        run: |
+         tar -czf jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C jdk/build/${{ inputs.platform }}/images/ ./
+  
+      - name: Upload arartifact
+        uses: actions/upload-artifact@v3
         with:
-          platform: ${{ inputs.platform }}
+          name: jdk-${{ inputs.platform }}
+          retention-days: 1
+          path: |
+            jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz
+  

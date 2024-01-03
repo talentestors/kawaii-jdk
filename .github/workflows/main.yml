@@ -53,8 +53,8 @@ jobs:
     outputs:
       dependencies: ${{ steps.check_deps.outputs.dependencies }}
       linux-x64: ${{ steps.include.outputs.linux-x64 }}
-      # macos-x64: ${{ steps.include.outputs.macos-x64 }}
-      # windows-x64: ${{ steps.include.outputs.windows-x64 }}
+      macos-x64: ${{ steps.include.outputs.macos-x64 }}
+      windows-x64: ${{ steps.include.outputs.windows-x64 }}
 
     steps:
         # This function must be inlined in main.yml, or we'd be forced to checkout the repo
@@ -118,7 +118,7 @@ jobs:
 
       - name: Set JDK_VERSION 
         run: |
-          JDK_VERSION="${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_FEATURE }}-${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_INTERIM }}-${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_UPDATE }}-${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_PATCH }}"
+          JDK_VERSION="${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_INTERIM }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_UPDATE }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_PATCH }}"
           echo "JDK_VERSION=$JDK_VERSION" >> $GITHUB_ENV
         working-directory: jdk
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
@@ -168,8 +168,8 @@ jobs:
     
     needs:
       - select
-      # - build-windows-x64
-      # - build-macos-x64
+      - build-windows-x64
+      - build-macos-x64
       - build-linux-x64
 
     steps:
