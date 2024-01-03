@@ -145,7 +145,7 @@ jobs:
     uses: ./.github/workflows/build-linux.yml
     with:
       platform: linux-x86
-      apt-gcc-version: 'multilib'
+      apt-gcc-version: '11-multilib'
       apt-architecture: 'i386'
       JDK_VERSION: ${{ github.env.JDK_VERSION }}
       # Some multilib libraries do not have proper inter-dependencies, so we have to
