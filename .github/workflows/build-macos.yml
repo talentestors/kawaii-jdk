@@ -45,6 +45,10 @@ on:
       xcode-toolset-version:
         required: true
         type: string
+      JDK_VERSION:
+        required: false
+        type: string
+        default: '17-0-8-1'
 
 jobs:
   build-macos:
