@@ -170,8 +170,7 @@ jobs:
       - select
       # - build-windows-x64
       # - build-macos-x64
-      # - build-linux-x64
-      - build-linux-x86
+      - build-linux-x64
 
     steps:
       - name: Checkout the source
