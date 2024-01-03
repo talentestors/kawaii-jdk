@@ -247,13 +247,6 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
             fail(Controller.MEMORY, "memory.kmem.failcnt", oldVal, newVal);
         }
 
-        oldVal = metrics.getKernelMemoryLimit();
-        newVal = getLongValueFromFile(Controller.MEMORY, "memory.kmem.limit_in_bytes");
-        newVal = newVal > unlimited_minimum ? CgroupSubsystem.LONG_RETVAL_UNLIMITED : newVal;
-        if (!CgroupMetricsTester.compareWithErrorMargin(oldVal, newVal)) {
-            fail(Controller.MEMORY, "memory.kmem.limit_in_bytes", oldVal, newVal);
-        }
-
         oldVal = metrics.getKernelMemoryMaxUsage();
         newVal = getLongValueFromFile(Controller.MEMORY, "memory.kmem.max_usage_in_bytes");
         if (!CgroupMetricsTester.compareWithErrorMargin(oldVal, newVal)) {
@@ -273,13 +266,6 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
             fail(Controller.MEMORY, "memory.kmem.tcp.failcnt", oldVal, newVal);
         }
 
-        oldVal = metrics.getTcpMemoryLimit();
-        newVal = getLongValueFromFile(Controller.MEMORY, "memory.kmem.tcp.limit_in_bytes");
-        newVal = newVal > unlimited_minimum ? CgroupSubsystem.LONG_RETVAL_UNLIMITED: newVal;
-        if (!CgroupMetricsTester.compareWithErrorMargin(oldVal, newVal)) {
-            fail(Controller.MEMORY, "memory.kmem.tcp.limit_in_bytes", oldVal, newVal);
-        }
-
         oldVal = metrics.getTcpMemoryMaxUsage();
         newVal = getLongValueFromFile(Controller.MEMORY, "memory.kmem.tcp.max_usage_in_bytes");
         if (!CgroupMetricsTester.compareWithErrorMargin(oldVal, newVal)) {
@@ -293,6 +279,7 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
         }
 
         //  Memory and Swap
+
         // Skip swap tests if no swap is configured.
         if (metrics.getMemoryAndSwapLimit() > metrics.getMemoryLimit()) {
             oldVal = metrics.getMemoryAndSwapFailCount();
@@ -314,13 +301,10 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
                 fail(Controller.MEMORY, "memory.memsw.max_usage_in_bytes", oldVal, newVal);
             }
 
+            oldVal = metrics.getMemoryAndSwapUsage();
+            newVal = getLongValueFromFile(Controller.MEMORY, "memory.memsw.usage_in_bytes");
             if (!CgroupMetricsTester.compareWithErrorMargin(oldVal, newVal)) {
                 fail(Controller.MEMORY, "memory.memsw.usage_in_bytes", oldVal, newVal);
-                oldVal = metrics.getMemoryAndSwapUsage();
-                newVal = getLongValueFromFile(Controller.MEMORY, "memory.memsw.usage_in_bytes");
-                if (!CgroupMetricsTester.compareWithErrorMargin(oldVal, newVal)) {
-                    fail(Controller.MEMORY, "memory.memsw.usage_in_bytes", oldVal, newVal);
-                }
             }
         }
 
@@ -431,7 +415,7 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
         // Parse range string in the format 1,2-6,7
         Integer[] newVal = CgroupMetricsTester.convertCpuSetsToArray(cpusstr);
         newVal = CgroupMetricsTester.sortAllowNull(newVal);
-        if (!Arrays.equals(oldVal, newVal)) {
+        if (Arrays.compare(oldVal, newVal) != 0) {
             fail(Controller.CPUSET, "cpuset.cpus", Arrays.toString(oldVal),
                 Arrays.toString(newVal));
         }
@@ -443,7 +427,7 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
         cpusstr = getFileContents(Controller.CPUSET, "cpuset.effective_cpus");
         newVal = CgroupMetricsTester.convertCpuSetsToArray(cpusstr);
         newVal = CgroupMetricsTester.sortAllowNull(newVal);
-        if (!Arrays.equals(oldVal, newVal)) {
+        if (Arrays.compare(oldVal, newVal) != 0) {
             fail(Controller.CPUSET, "cpuset.effective_cpus", Arrays.toString(oldVal),
                     Arrays.toString(newVal));
         }
@@ -453,7 +437,7 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
         cpusstr = getFileContents(Controller.CPUSET, "cpuset.mems");
         newVal = CgroupMetricsTester.convertCpuSetsToArray(cpusstr);
         newVal = CgroupMetricsTester.sortAllowNull(newVal);
-        if (!Arrays.equals(oldVal, newVal)) {
+        if (Arrays.compare(oldVal, newVal) != 0) {
             fail(Controller.CPUSET, "cpuset.mems", Arrays.toString(oldVal),
                     Arrays.toString(newVal));
         }
@@ -465,7 +449,7 @@ public class MetricsTesterCgroupV1 implements CgroupMetricsTester {
         cpusstr = getFileContents(Controller.CPUSET, "cpuset.effective_mems");
         newVal = CgroupMetricsTester.convertCpuSetsToArray(cpusstr);
         newVal = CgroupMetricsTester.sortAllowNull(newVal);
-        if (!Arrays.equals(oldVal, newVal)) {
+        if (Arrays.compare(oldVal, newVal) != 0) {
             fail(Controller.CPUSET, "cpuset.effective_mems", Arrays.toString(oldVal),
                     Arrays.toString(newVal));
         }

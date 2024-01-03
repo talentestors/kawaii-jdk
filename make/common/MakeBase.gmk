@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 ################################################################
 #
-# Check that GNU make and cygwin are recent enough.
 # Setup common utility functions.
 #
 ################################################################
@@ -33,444 +32,544 @@
 ifndef _MAKEBASE_GMK
 _MAKEBASE_GMK := 1
 
-# If the variable that you want to send to stdout for piping into a file or otherwise,
-# is potentially long, for example the a list of file paths, eg a list of all package directories.
-# Then you need to use ListPathsSafely, which optimistically splits the output into several shell
-# calls as well as use compression on recurrent file paths segments, to get around the potential
-# command line length problem that exists in cygwin and other shells.
-compress_pre:=$(strip $(shell $(CAT) $(SRC_ROOT)/make/common/support/ListPathsSafely-pre-compress.incl))
-compress_post:=$(strip $(shell $(CAT) $(SRC_ROOT)/make/common/support/ListPathsSafely-post-compress.incl))
-compress_paths=$(compress_pre)\
-$(subst $(SRC_ROOT),X97,\
-$(subst $(OUTPUT_ROOT),X98,\
-$(subst X,X00,\
-$(subst $(SPACE),\n,$(strip $1)))))\
-$(compress_post)
+ifeq ($(wildcard $(SPEC)),)
+  $(error MakeBase.gmk needs SPEC set to a proper spec.gmk)
+endif
 
-decompress_paths=$(SED) -f $(SRC_ROOT)/make/common/support/ListPathsSafely-uncompress.sed -e 's|X99|\\n|g' \
-    -e 's|X98|$(OUTPUT_ROOT)|g' -e 's|X97|$(SRC_ROOT)|g' \
-    -e 's|X00|X|g' | tr '\n' '$2'
+# By defining this pseudo target, make will automatically remove targets
+# if their recipe fails so that a rebuild is automatically triggered on the
+# next make invocation.
+.DELETE_ON_ERROR:
 
-define ListPathsSafely_If
-	$(if $(word $3,$($1)),$(eval $1_LPS$3:=$(call compress_paths,$(wordlist $3,$4,$($1)))))
-endef
+################################################################################
+# Definitions for special characters
+################################################################################
 
-define ListPathsSafely_Printf
-	$(if $(strip $($1_LPS$4)),$(if $(findstring $(LOG_LEVEL),trace),,@)printf \
-	    -- "$(strip $($1_LPS$4))\n" | $(decompress_paths) $3)
-endef
+# When calling macros, the spaces between arguments are
+# often semantically important! Sometimes we need to subst
+# spaces and commas, therefore we need the following macros.
+X:=
+SPACE:=$(X) $(X)
+COMMA:=,
+DOLLAR:=$$
+HASH:=\#
+LEFT_PAREN:=(
+RIGHT_PAREN:=)
+SQUOTE:='
+#'
+DQUOTE:="
+#"
+define NEWLINE
 
-# Receipt example:
-#   rm -f thepaths
-#   $(call ListPathsSafely,THEPATHS,\n, >> thepaths)
-# The \n argument means translate spaces into \n
-# if instead , , (a space) is supplied, then spaces remain spaces.
-define ListPathsSafely
-	$(if $(word 16001,$($1)),$(error Cannot list safely more than 16000 paths. $1 has $(words $($1)) paths!))
-	$(ECHO) $(LOG_DEBUG) Writing $(words $($1)) paths to '$3'
-	$(call ListPathsSafely_If,$1,$2,1,250)
-	$(call ListPathsSafely_If,$1,$2,251,500)
-	$(call ListPathsSafely_If,$1,$2,501,750)
-	$(call ListPathsSafely_If,$1,$2,751,1000)
-
-	$(call ListPathsSafely_If,$1,$2,1001,1250)
-	$(call ListPathsSafely_If,$1,$2,1251,1500)
-	$(call ListPathsSafely_If,$1,$2,1501,1750)
-	$(call ListPathsSafely_If,$1,$2,1751,2000)
-
-	$(call ListPathsSafely_If,$1,$2,2001,2250)
-	$(call ListPathsSafely_If,$1,$2,2251,2500)
-	$(call ListPathsSafely_If,$1,$2,2501,2750)
-	$(call ListPathsSafely_If,$1,$2,2751,3000)
-
-	$(call ListPathsSafely_If,$1,$2,3001,3250)
-	$(call ListPathsSafely_If,$1,$2,3251,3500)
-	$(call ListPathsSafely_If,$1,$2,3501,3750)
-	$(call ListPathsSafely_If,$1,$2,3751,4000)
-
-	$(call ListPathsSafely_If,$1,$2,4001,4250)
-	$(call ListPathsSafely_If,$1,$2,4251,4500)
-	$(call ListPathsSafely_If,$1,$2,4501,4750)
-	$(call ListPathsSafely_If,$1,$2,4751,5000)
-
-	$(call ListPathsSafely_If,$1,$2,5001,5250)
-	$(call ListPathsSafely_If,$1,$2,5251,5500)
-	$(call ListPathsSafely_If,$1,$2,5501,5750)
-	$(call ListPathsSafely_If,$1,$2,5751,6000)
-
-	$(call ListPathsSafely_If,$1,$2,6001,6250)
-	$(call ListPathsSafely_If,$1,$2,6251,6500)
-	$(call ListPathsSafely_If,$1,$2,6501,6750)
-	$(call ListPathsSafely_If,$1,$2,6751,7000)
-
-	$(call ListPathsSafely_If,$1,$2,7001,7250)
-	$(call ListPathsSafely_If,$1,$2,7251,7500)
-	$(call ListPathsSafely_If,$1,$2,7501,7750)
-	$(call ListPathsSafely_If,$1,$2,7751,8000)
-
-	$(call ListPathsSafely_If,$1,$2,8001,8250)
-	$(call ListPathsSafely_If,$1,$2,8251,8500)
-	$(call ListPathsSafely_If,$1,$2,8501,8750)
-	$(call ListPathsSafely_If,$1,$2,8751,9000)
-
-	$(call ListPathsSafely_If,$1,$2,9001,9250)
-	$(call ListPathsSafely_If,$1,$2,9251,9500)
-	$(call ListPathsSafely_If,$1,$2,9501,9750)
-	$(call ListPathsSafely_If,$1,$2,9751,10000)
-
-	$(call ListPathsSafely_If,$1,$2,10001,10250)
-	$(call ListPathsSafely_If,$1,$2,10251,10500)
-	$(call ListPathsSafely_If,$1,$2,10501,10750)
-	$(call ListPathsSafely_If,$1,$2,10751,11000)
-
-	$(call ListPathsSafely_If,$1,$2,11001,11250)
-	$(call ListPathsSafely_If,$1,$2,11251,11500)
-	$(call ListPathsSafely_If,$1,$2,11501,11750)
-	$(call ListPathsSafely_If,$1,$2,11751,12000)
-
-	$(call ListPathsSafely_If,$1,$2,12001,12250)
-	$(call ListPathsSafely_If,$1,$2,12251,12500)
-	$(call ListPathsSafely_If,$1,$2,12501,12750)
-	$(call ListPathsSafely_If,$1,$2,12751,13000)
-
-	$(call ListPathsSafely_If,$1,$2,13001,13250)
-	$(call ListPathsSafely_If,$1,$2,13251,13500)
-	$(call ListPathsSafely_If,$1,$2,13501,13750)
-	$(call ListPathsSafely_If,$1,$2,13751,14000)
-
-	$(call ListPathsSafely_If,$1,$2,14001,14250)
-	$(call ListPathsSafely_If,$1,$2,14251,14500)
-	$(call ListPathsSafely_If,$1,$2,14501,14750)
-	$(call ListPathsSafely_If,$1,$2,14751,15000)
-
-	$(call ListPathsSafely_If,$1,$2,15001,15250)
-	$(call ListPathsSafely_If,$1,$2,15251,15500)
-	$(call ListPathsSafely_If,$1,$2,15501,15750)
-	$(call ListPathsSafely_If,$1,$2,15751,16000)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,1)
-	$(call ListPathsSafely_Printf,$1,$2,$3,251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,1001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,1251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,1501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,1751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,2001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,2251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,2501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,2751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,3001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,3251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,3501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,3751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,4001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,4251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,4501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,4751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,5001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,5251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,5501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,5751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,6001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,6251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,6501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,6751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,7001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,7251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,7501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,7751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,8001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,8251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,8501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,8751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,9001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,9251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,9501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,9751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,10001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,10251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,10501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,10751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,11001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,11251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,11501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,11751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,12001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,12251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,12501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,12751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,13001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,13251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,13501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,13751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,14001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,14251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,14501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,14751)
-
-	$(call ListPathsSafely_Printf,$1,$2,$3,15001)
-	$(call ListPathsSafely_Printf,$1,$2,$3,15251)
-	$(call ListPathsSafely_Printf,$1,$2,$3,15501)
-	$(call ListPathsSafely_Printf,$1,$2,$3,15751)
-endef
-
-define ListPathsSafelyNow_IfPrintf
-  ifneq (,$$(word $4,$$($1)))
-    $$(eval $1_LPS$4:=$$(call compress_paths,$$(wordlist $4,$5,$$($1))))
-    $$(shell printf -- "$$(strip $$($1_LPS$4))\n" | $(decompress_paths) $3)
-  endif
-endef
-
-# And an non-receipt version:
-define ListPathsSafelyNow
-  ifneq (,$$(word 10001,$$($1)))
-    $$(error Cannot list safely more than 10000 paths. $1 has $$(words $$($1)) paths!)
-  endif
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,1,250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,251,500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,501,750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,751,1000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,1001,1250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,1251,1500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,1501,1750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,1751,2000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,2001,2250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,2251,2500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,2501,2750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,2751,3000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,3001,3250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,3251,3500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,3501,3750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,3751,4000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,4001,4250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,4251,4500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,4501,4750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,4751,5000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,5001,5250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,5251,5500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,5501,5750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,5751,6000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,6001,6250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,6251,6500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,6501,6750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,6751,7000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,7001,7250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,7251,7500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,7501,7750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,7751,8000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,8001,8250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,8251,8500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,8501,8750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,8751,9000)
-
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,9001,9250)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,9251,9500)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,9501,9750)
-  $(call ListPathsSafelyNow_IfPrintf,$1,$2,$3,9751,10000)
 
 endef
 
+# Make sure we have a value (could be overridden on command line by caller)
+CREATING_BUILDJDK ?= false
+
+# Certain features only work in newer version of GNU Make. The build will still
+# function in 3.81, but will be less performant.
+ifeq (4.0, $(firstword $(sort 4.0 $(MAKE_VERSION))))
+  HAS_FILE_FUNCTION := true
+  CORRECT_FUNCTION_IN_RECIPE_EVALUATION := true
+  RWILDCARD_WORKS := true
+endif
+
+
+# For convenience, MakeBase.gmk continues to include these separate files, at
+# least for now.
+
+include $(TOPDIR)/make/common/Utils.gmk
+include $(TOPDIR)/make/common/MakeIO.gmk
+include $(TOPDIR)/make/common/CopyFiles.gmk
+
+################################################################################
+# Functions for timers
+################################################################################
+
+# Store the build times in this directory.
+BUILDTIMESDIR=$(OUTPUTDIR)/make-support/build-times
+
+# Record starting time for build of a sub repository.
+define RecordStartTime
+	$(DATE) '+%Y %m %d %H %M %S' | $(AWK) '{ print $$1,$$2,$$3,$$4,$$5,$$6,($$4*3600+$$5*60+$$6) }' > $(BUILDTIMESDIR)/build_time_start_$(strip $1) && \
+	$(DATE) '+%Y-%m-%d %H:%M:%S' > $(BUILDTIMESDIR)/build_time_start_$(strip $1)_human_readable
+endef
+
+# Record ending time and calculate the difference and store it in a
+# easy to read format. Handles builds that cross midnight. Expects
+# that a build will never take 24 hours or more.
+define RecordEndTime
+	$(DATE) '+%Y %m %d %H %M %S' | $(AWK) '{ print $$1,$$2,$$3,$$4,$$5,$$6,($$4*3600+$$5*60+$$6) }' > $(BUILDTIMESDIR)/build_time_end_$(strip $1)
+	$(DATE) '+%Y-%m-%d %H:%M:%S' > $(BUILDTIMESDIR)/build_time_end_$(strip $1)_human_readable
+	$(ECHO) `$(CAT) $(BUILDTIMESDIR)/build_time_start_$(strip $1)` `$(CAT) $(BUILDTIMESDIR)/build_time_end_$(strip $1)` $1 | \
+	    $(AWK) '{ F=$$7; T=$$14; if (F > T) { T+=3600*24 }; D=T-F; H=int(D/3600); \
+	    M=int((D-H*3600)/60); S=D-H*3600-M*60; printf("%02d:%02d:%02d %s\n",H,M,S,$$15); }' \
+	    > $(BUILDTIMESDIR)/build_time_diff_$(strip $1)
+endef
+
+# Hook to be called when starting to execute a top-level target
+define TargetEnter
+	$(PRINTF) "## Starting $(patsubst %-only,%,$@)\n"
+	$(call RecordStartTime,$(patsubst %-only,%,$@))
+endef
+
+# Hook to be called when finish executing a top-level target
+define TargetExit
+	$(call RecordEndTime,$(patsubst %-only,%,$@))
+	$(PRINTF) "## Finished $(patsubst %-only,%,$@) (build time %s)\n\n" \
+	    "`$(CAT) $(BUILDTIMESDIR)/build_time_diff_$(patsubst %-only,%,$@) | $(CUT) -f 1 -d ' '`"
+endef
+
+################################################################################
 
 # A file containing a way to uniquely identify the source code revision that
 # the build was created from
-SOURCE_REVISION_TRACKER := $(OUTPUT_ROOT)/src-rev/source-revision-tracker
+SOURCE_REVISION_TRACKER := $(SUPPORT_OUTPUTDIR)/src-rev/source-revision-tracker
 
 # Locate all hg repositories included in the forest, as absolute paths
 FindAllReposAbs = \
-    $(strip $(sort $(dir $(filter-out $(SRC_ROOT)/build/%, $(wildcard \
-        $(addprefix $(SRC_ROOT)/, .hg */.hg */*/.hg */*/*/.hg) \
-        $(addprefix $(SRC_ROOT)/, .git */.git */*/.git */*/*/.git */*/*/*/.git) \
+    $(strip $(sort $(dir $(filter-out $(TOPDIR)/build/%, $(wildcard \
+        $(addprefix $(TOPDIR)/, .hg */.hg */*/.hg */*/*/.hg */*/*/*/.hg) \
+        $(addprefix $(TOPDIR)/, .git */.git */*/.git */*/*/.git */*/*/*/.git) \
     )))))
 
 # Locate all hg repositories included in the forest, as relative paths
 FindAllReposRel = \
-    $(strip $(subst $(SRC_ROOT)/,.,$(patsubst $(SRC_ROOT)/%/, %, $(FindAllReposAbs))))
+    $(strip $(subst $(TOPDIR)/,.,$(patsubst $(TOPDIR)/%/, %, $(FindAllReposAbs))))
+
+################################################################################
 
 define SetupLogging
-  ifeq ($$(LOG_LEVEL),trace)
+  ifeq ($$(LOG_PROFILE_TIMES_FILE), true)
+    ifeq ($$(IS_GNU_TIME), yes)
+      SHELL :=  $$(BASH) $$(TOPDIR)/make/scripts/shell-profiler.sh \
+                gnutime $$(TIME) \
+                $$(OUTPUTDIR)/build-profile.log $$(SHELL)
+    else ifneq ($$(FLOCK), )
+      SHELL :=  $$(BASH) $$(TOPDIR)/make/scripts/shell-profiler.sh \
+                flock $$(FLOCK) \
+                $$(OUTPUTDIR)/build-profile.log $$(SHELL)
+    endif
+  endif
+
+  ifeq ($$(LOG_LEVEL), trace)
+    SHELL_NO_RECURSE := $$(SHELL)
     # Shell redefinition trick inspired by http://www.cmcrossroads.com/ask-mr-make/6535-tracing-rule-execution-in-gnu-make
     # For each target executed, will print
     # Building <TARGET> (from <FIRST PREREQUISITE>) (<ALL NEWER PREREQUISITES> newer)
     # but with a limit of 20 on <ALL NEWER PREREQUISITES>, to avoid cluttering logs too much
     # (and causing a crash on Cygwin).
-    # Default shell seems to always be /bin/sh. Must override with bash to get this to work on Solaris.
-    # Only use time if it's GNU time which supports format and output file.
-    WRAPPER_SHELL:=/bin/bash $$(SRC_ROOT)/common/bin/shell-tracer.sh $$(if $$(findstring yes,$$(IS_GNU_TIME)),$$(TIME),-) $$(OUTPUT_ROOT)/build-trace-time.log /bin/bash
-    SHELL=$$(warning $$(if $$@,Building $$@,Running shell command) $$(if $$<, (from $$<))$$(if $$?, ($$(wordlist 1, 20, $$?) $$(if $$(wordlist 21, 22, $$?), ... [in total $$(words $$?) files]) newer)))$$(WRAPPER_SHELL)
+    SHELL = $$(warning $$(if $$@,Building $$@,Running shell command) $$(if $$<, (from $$<))$$(if $$?, ($$(wordlist 1, 20, $$?) $$(if $$(wordlist 21, 22, $$?), ... [in total $$(words $$?) files]) newer)))$$(SHELL_NO_RECURSE) -x
   endif
-  # Never remove warning messages; this is just for completeness
-  LOG_WARN=
-  ifneq ($$(findstring $$(LOG_LEVEL),info debug trace),)
-    LOG_INFO=
+
+  # The LOG_PREFIX is set for sub recursive calls like buildjdk and bootcycle.
+  # The warn level can never be turned off
+  LogWarn = $$(info $(LOG_PREFIX)$$(strip $$1))
+  LOG_WARN :=
+  ifneq ($$(findstring $$(LOG_LEVEL), info debug trace),)
+    LogInfo = $$(info $(LOG_PREFIX)$$(strip $$1))
+    LOG_INFO :=
   else
-    LOG_INFO=> /dev/null
+    LogInfo =
+    LOG_INFO := > /dev/null
   endif
-  ifneq ($$(findstring $$(LOG_LEVEL),debug trace),)
-    LOG_DEBUG=
+  ifneq ($$(findstring $$(LOG_LEVEL), debug trace),)
+    LogDebug = $$(info $(LOG_PREFIX)$$(strip $$1))
+    LOG_DEBUG :=
   else
-    LOG_DEBUG=> /dev/null
+    LogDebug =
+    LOG_DEBUG := > /dev/null
   endif
-  ifneq ($$(findstring $$(LOG_LEVEL),trace),)
-    LOG_TRACE=
+  ifneq ($$(findstring $$(LOG_LEVEL), trace),)
+    LogTrace = $$(info $(LOG_PREFIX)$$(strip $$1))
+    LOG_TRACE :=
   else
-    LOG_TRACE=> /dev/null
+    LogTrace =
+    LOG_TRACE := > /dev/null
   endif
 endef
 
 # Make sure logging is setup for everyone that includes MakeBase.gmk.
 $(eval $(call SetupLogging))
 
-# This is to be called by all SetupFoo macros
-define LogSetupMacroEntry
-  $(if $(27),$(error Internal makefile error: Too many arguments to LogSetupMacroEntry, please update MakeBase.gmk))
-  $(if $(findstring $(LOG_LEVEL),debug trace), $(info $1 $(foreach i,2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26,$(if $($i),$(NEWLINE) $(strip [$i] $($i))))))
+################################################################################
+
+MAX_PARAMS := 36
+PARAM_SEQUENCE := $(call sequence, 2, $(MAX_PARAMS))
+
+# Template for creating a macro taking named parameters. To use it, assign the
+# template to a variable with the name you want for your macro, using '='
+# assignment. Then define a macro body with the suffix "Body". The Body macro
+# should take 1 parameter which should be a unique string for that invocation
+# of the macro.
+# Ex:
+# SetupFoo = $(NamedParamsMacroTemplate)
+# define SetupFooBody
+#   # do something
+#   # access parameters as $$($1_BAR)
+# endef
+# Call it like this
+# $(eval $(call SetupFoo, BUILD_SOMETHING, \
+#     BAR := some parameter value, \
+# ))
+define NamedParamsMacroTemplate
+  $(if $($(MAX_PARAMS)),$(error Internal makefile error: \
+      Too many named arguments to macro, please update MAX_PARAMS in MakeBase.gmk))
+  # Iterate over 2 3 4... and evaluate the named parameters with $1_ as prefix
+  $(foreach i,$(PARAM_SEQUENCE), $(if $(strip $($i)),\
+    $(strip $1)_$(strip $(call EscapeHash, $(call DoubleDollar, $($i))))$(NEWLINE)))
+  # Debug print all named parameter names and values
+  $(if $(findstring $(LOG_LEVEL),debug trace), \
+    $(info $0 $(strip $1) $(foreach i,$(PARAM_SEQUENCE), \
+      $(if $(strip $($i)),$(NEWLINE) $(strip [$i] $(if $(filter $(LOG_LEVEL), trace), \
+        $($i), $(wordlist 1, 20, $($(i))) $(if $(word 21, $($(i))), ...)))))))
+
+  $(if $(DEBUG_$(strip $1)),
+    $(info -------- <<< Begin expansion of $(strip $1)) \
+    $(info $(call $(0)Body,$(strip $1))) \
+    $(info -------- >>> End expansion of $(strip $1)) \
+  )
+
+  $(call $(0)Body,$(strip $1))
 endef
 
-# Make directory without forking mkdir if not needed
-define MakeDir
-  ifneq ($$(wildcard $1 $2 $3 $4 $5 $6 $7 $8 $9),$$(strip $1 $2 $3 $4 $5 $6 $7 $8 $9))
-    $$(shell $(MKDIR) -p $1 $2 $3 $4 $5 $6 $7 $8 $9)
-  endif
-endef
+################################################################################
+# Make directory without forking mkdir if not needed.
+#
+# If a directory with an encoded space is provided, the wildcard function
+# sometimes returns false answers (typically if the dir existed when the
+# makefile was parsed, but was deleted by a previous rule). In that case, always
+# call mkdir regardless of what wildcard says.
+#
+# 1: List of directories to create
+MakeDir = \
+    $(strip \
+        $(eval MakeDir_dirs_to_make := $(strip $(foreach d, $1, \
+          $(if $(findstring ?, $d), '$(call DecodeSpace, $d)', \
+            $(if $(wildcard $d), , $d) \
+          ) \
+        ))) \
+        $(if $(MakeDir_dirs_to_make), $(shell $(MKDIR) -p $(MakeDir_dirs_to_make))) \
+    )
 
-ifeq ($(OPENJDK_TARGET_OS),solaris)
-  # On Solaris, if the target is a symlink and exists, cp won't overwrite.
-  # Cp has to operate in recursive mode to allow for -P flag, to preserve soft links. If the
-  # name of the target file differs from the source file, rename after copy.
-  define install-file
-	$(MKDIR) -p $(@D)
-	$(RM) '$@'
-	$(CP) -f -r -P '$<' '$(@D)'
-	if [ "$(@F)" != "$(<F)" ]; then $(MV) '$(@D)/$(<F)' '$@'; fi
-  endef
-else ifeq ($(OPENJDK_TARGET_OS),macosx)
+# Make directory for target file. Should handle spaces in filenames. Just
+# calling $(call MakeDir $(@D)) will not work if the directory contains a space
+# and the target file already exists. In that case, the target file will have
+# its wildcard ? resolved and the $(@D) will evaluate each space separated dir
+# part on its own.
+MakeTargetDir = \
+    $(call MakeDir, $(dir $(call EncodeSpace, $@)))
+
+################################################################################
+# All install-file and related macros automatically call DecodeSpace when needed.
+
+ifeq ($(call isTargetOs, macosx), true)
   # On mac, extended attributes sometimes creep into the source files, which may later
   # cause the creation of ._* files which confuses testing. Clear these with xattr if
   # set. Some files get their write permissions removed after being copied to the
   # output dir. When these are copied again to images, xattr would fail. By only clearing
   # attributes when they are present, failing on this is avoided.
+  #
+  # If copying a soft link to a directory, need to delete the target first to avoid
+  # weird errors.
   define install-file
-	$(MKDIR) -p $(@D)
-	$(CP) -fRP '$<' '$@'
-	if [ -n "`$(XATTR) -l '$@'`" ]; then $(XATTR) -c '$@'; fi
+	$(call MakeTargetDir)
+	$(RM) '$(call DecodeSpace, $@)'
+        # Work around a weirdness with cp on Macosx. When copying a symlink, if
+        # the target of the link is write protected (e.g. 444), cp will add
+        # write permission for the user on the target file (644). Avoid this by
+        # using ln to create a new link instead.
+	if [ -h '$(call DecodeSpace, $<)' ]; then \
+	  $(LN) -s "`$(READLINK) '$(call DecodeSpace, $<)'`" '$(call DecodeSpace, $@)'; \
+	else \
+	  $(CP) -fRP '$(call DecodeSpace, $<)' '$(call DecodeSpace, $@)'; \
+	fi
+	if [ -n "`$(XATTR) -ls '$(call DecodeSpace, $@)'`" ]; then \
+	  $(XATTR) -cs '$(call DecodeSpace, $@)'; \
+	fi
   endef
 else
   define install-file
-	$(MKDIR) -p $(@D)
-	$(CP) -fP '$<' '$@'
+	$(call MakeTargetDir)
+	$(CP) -fP '$(call DecodeSpace, $<)' '$(call DecodeSpace, $@)'
   endef
 endif
 
-# Convenience functions for working around make's limitations with $(filter ).
-containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
-not-containing = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
+# Variant of install file that does not preserve symlinks
+define install-file-nolink
+	$(call MakeTargetDir)
+	$(CP) -f '$(call DecodeSpace, $<)' '$(call DecodeSpace, $@)'
+endef
 
 ################################################################################
-# In Cygwin, finds are very costly, both because of expensive forks and because
-# of bad file system caching. Find is used extensively in $(shell) commands to
-# find source files. This makes rerunning make with no or few changes rather
-# expensive. To speed this up, these two macros are used to cache the results
-# of simple find commands for reuse.
-#
-# Runs a find and stores both the directories where it was run and the results.
-# This macro can be called multiple times to add to the cache. Only finds files
-# with no filters.
-#
-# Needs to be called with $(eval )
-#
-# Param 1 - Dir to find in
-ifeq ($(OPENJDK_BUILD_OS),windows)
-  define FillCacheFind
-    FIND_CACHE_DIR += $1
-    FIND_CACHE := $$(sort $$(FIND_CACHE) $$(shell $(FIND) $1 -type f -o -type l))
+# link-file-* works similarly to install-file but creates a symlink instead.
+# There are two versions, either creating a relative or an absolute link. Be
+# careful when using this on Windows since the symlink created is only valid in
+# the unix emulation environment.
+# In msys2 we use mklink /J because its ln would perform a deep copy of the target.
+# This inhibits performance and can lead to issues with long paths. With mklink /J
+# relative linking does not work, so we handle the link as absolute path.
+ifeq ($(OPENJDK_BUILD_OS_ENV), windows.msys2)
+  define link-file-relative
+	$(call MakeTargetDir)
+	$(RM) '$(call DecodeSpace, $@)'
+	cmd //c "mklink /J $(call FixPath, $(call DecodeSpace, $@)) $(call FixPath, $(call DecodeSpace, $<))"
   endef
 else
-  define FillCacheFind
+  define link-file-relative
+	$(call MakeTargetDir)
+	$(RM) '$(call DecodeSpace, $@)'
+	$(LN) -s '$(call DecodeSpace, $(call RelativePath, $<, $(@D)))' '$(call DecodeSpace, $@)'
   endef
 endif
 
-# Mimics find by looking in the cache if all of the directories have been cached.
-# Otherwise reverts to shell find. This is safe to call on all platforms, even if
-# cache is deactivated.
+ifeq ($(OPENJDK_BUILD_OS_ENV), windows.msys2)
+  define link-file-absolute
+	$(call MakeTargetDir)
+	$(RM) '$(call DecodeSpace, $@)'
+	cmd //c "mklink /J $(call FixPath, $(call DecodeSpace, $@)) $(call FixPath, $(call DecodeSpace, $<))"
+  endef
+else
+  define link-file-absolute
+	$(call MakeTargetDir)
+	$(RM) '$(call DecodeSpace, $@)'
+	$(LN) -s '$(call DecodeSpace, $<)' '$(call DecodeSpace, $@)'
+  endef
+endif
+
+################################################################################
+
+# Recursive wildcard function. Walks down directories recursively and matches
+# files with the search patterns. Patterns use standard file wildcards (* and
+# ?).
 #
-# The extra - is needed when FIND_CACHE_DIR is empty but should be harmless.
-# Param 1 - Dirs to find in
-define CacheFind
-  $(if $(filter-out $(addsuffix %,- $(FIND_CACHE_DIR)),$1), \
-    $(shell $(FIND) $1 -type f -o -type l), \
-    $(filter $(addsuffix %,$1),$(FIND_CACHE)))
-endef
+# $1 - Directories to start search in
+# $2 - Search patterns
+rwildcard = \
+    $(strip \
+        $(foreach d, \
+          $(patsubst %/,%,$(sort $(dir $(wildcard $(addsuffix /*/*, $(strip $1)))))), \
+          $(call rwildcard,$d,$2) \
+        ) \
+        $(call DoubleDollar, $(wildcard $(foreach p, $2, $(addsuffix /$(strip $p), $(strip $1))))) \
+    )
+
+# Find non directories using recursive wildcard function. This function may
+# be used directly when a small amount of directories is expected to be
+# searched and caching is not expected to be of use.
+#
+# $1 - Directory to start search in
+# $2 - Optional search patterns, defaults to '*'.
+WildcardFindFiles = \
+    $(sort $(strip \
+        $(eval WildcardFindFiles_result := $(call rwildcard,$(patsubst %/,%,$1),$(if $(strip $2),$2,*))) \
+        $(filter-out $(patsubst %/,%,$(sort $(dir $(WildcardFindFiles_result)))), \
+            $(WildcardFindFiles_result) \
+        ) \
+    ))
+
+# Find non directories using the find utility in the shell. Safe to call for
+# non existing directories, or directories containing wildcards.
+#
+# Files containing space will get spaces replaced with ? because GNU Make
+# cannot handle lists of files with space in them. By using ?, make will match
+# the wildcard to space in many situations so we don't need to replace back
+# to space on every use. While not a complete solution it does allow some uses
+# of FindFiles to function with spaces in file names, including for
+# SetupCopyFiles. Unfortunately this does not work for WildcardFindFiles so
+# if files with spaces are anticipated, use ShellFindFiles directly.
+#
+# $1 - Directories to start search in.
+# $2 - Optional search patterns, empty means find everything. Patterns use
+#      standard file wildcards (* and ?) and should not be quoted.
+# $3 - Optional options to find.
+ShellFindFiles = \
+    $(if $(wildcard $1), \
+      $(sort \
+          $(shell $(FIND) $3 $(patsubst %/,%,$(wildcard $1)) \( -type f -o -type l \) \
+              $(if $(strip $2), -a \( -name "$(firstword $2)" \
+              $(foreach p, $(filter-out $(firstword $2), $2), -o -name "$(p)") \)) \
+              | $(TR) ' ' '?' \
+          ) \
+      ) \
+    )
+
+# Find non directories using the method most likely to work best for the
+# current build host
+#
+# $1 - Directory to start search in
+# $2 - Optional search patterns, defaults to '*'.
+ifeq ($(OPENJDK_BUILD_OS)-$(RWILDCARD_WORKS), windows-true)
+  DirectFindFiles = $(WildcardFindFiles)
+else
+  DirectFindFiles = $(ShellFindFiles)
+endif
+
+# Finds files using a cache that is populated by FillFindCache below. If any of
+# the directories given have not been cached, DirectFindFiles is used for
+# everything. Caching is especially useful in Cygwin, where file finds are very
+# costly.
+#
+# $1 - Directories to start search in.
+# $2 - Optional search patterns. If used, no caching is done.
+CacheFindFiles_CACHED_DIRS :=
+CacheFindFiles_CACHED_FILES :=
+CacheFindFiles = \
+    $(if $2, \
+      $(call DirectFindFiles, $1, $2) \
+    , \
+      $(if $(filter-out $(addsuffix /%, $(CacheFindFiles_CACHED_DIRS)) \
+          $(CacheFindFiles_CACHED_DIRS), $1), \
+        $(call DirectFindFiles, $1) \
+      , \
+        $(filter $(addsuffix /%,$(patsubst %/,%,$1)) $1,$(CacheFindFiles_CACHED_FILES)) \
+      ) \
+    )
+
+# Explicitly adds files to the find cache used by CacheFindFiles.
+#
+# $1 - Directories to start search in
+FillFindCache = \
+    $(eval CacheFindFiles_NEW_DIRS := $$(filter-out $$(addsuffix /%,\
+        $$(CacheFindFiles_CACHED_DIRS)) $$(CacheFindFiles_CACHED_DIRS), $1)) \
+    $(if $(CacheFindFiles_NEW_DIRS), \
+      $(eval CacheFindFiles_CACHED_DIRS += $$(patsubst %/,%,$$(CacheFindFiles_NEW_DIRS))) \
+      $(eval CacheFindFiles_CACHED_FILES := $$(sort $$(CacheFindFiles_CACHED_FILES) \
+          $$(call DirectFindFiles, $$(CacheFindFiles_NEW_DIRS)))) \
+    )
+
+# Findfiles is the default macro that should be used to find files in the file
+# system. This function does not always support files with spaces in the names.
+# If files with spaces are anticipated, use ShellFindFiles directly.
+#
+# $1 - Directories to start search in.
+# $2 - Optional search patterns, empty means find everything. Patterns use
+#      standard file wildcards (* and ?) and should not be quoted.
+ifeq ($(DISABLE_CACHE_FIND), true)
+  FindFiles = $(DirectFindFiles)
+else
+  FindFiles = $(CacheFindFiles)
+endif
+
+################################################################################
+# FixPath
+#
+# On Windows, converts a path from cygwin/unix style (e.g. /bin/foo) into
+# "mixed mode" (e.g. c:/cygwin/bin/foo). On other platforms, return the path
+# unchanged.
+# This also converts a colon-separated list of paths to a semicolon-separated
+# list.
+# This is normally not needed since we use the FIXPATH prefix for command lines,
+# but might be needed in certain circumstances.
+ifeq ($(call isTargetOs, windows), true)
+  FixPath = \
+    $(strip $(subst \,\\, $(shell $(FIXPATH_BASE) print $(patsubst $(FIXPATH), , $1))))
+else
+  FixPath = \
+      $1
+endif
+
+################################################################################
+# DependOnVariable
+#
+# This macro takes a variable name and puts the value in a file only if the
+# value has changed since last. The name of the file is returned. This can be
+# used to create rule dependencies on make variable values. The following
+# example would get rebuilt if the value of SOME_VAR was changed:
+#
+# path/to/some-file: $(call DependOnVariable, SOME_VAR)
+#         echo $(SOME_VAR) > $@
+#
+# Note that leading and trailing white space in the value is ignored.
+#
+
+# Defines the sub directory structure to store variable value file in
+DependOnVariableDirName = \
+    $(strip $(addsuffix $(if $(MODULE),/$(MODULE)), \
+        $(subst $(WORKSPACE_ROOT)/,, $(if $(filter /%, $(firstword $(MAKEFILE_LIST))), \
+          $(firstword $(MAKEFILE_LIST)), \
+          $(CURDIR)/$(firstword $(MAKEFILE_LIST))))))
+
+# Defines the name of the file to store variable value in. Generates a name
+# unless parameter 2 is given.
+# Param 1 - Name of variable
+# Param 2 - (optional) name of file to store value in
+DependOnVariableFileName = \
+    $(strip $(if $(strip $2), $2, \
+      $(MAKESUPPORT_OUTPUTDIR)/vardeps/$(DependOnVariableDirName)/$(strip $1).vardeps))
+
+# Writes the vardeps file. Assumes $1_filename has been setup
+# Param 1 - Name of variable
+DependOnVariableWriteFile = \
+    $(call MakeDir, $(dir $($1_filename))) \
+    $(call WriteFile, $1_old:=$(call DoubleDollar,$(call EscapeHash,$($1))), \
+         $($1_filename)) \
+
+# Does the actual work with parameters stripped.
+# If the file exists AND the contents is the same as the variable, do nothing
+# else print a new file.
+# Always returns the name of the file where the value was printed.
+# Param 1 - Name of variable
+# Param 2 - (optional) name of file to store value in
+DependOnVariableHelper = \
+    $(strip \
+        $(eval $1_filename := $(call DependOnVariableFileName, $1, $2)) \
+        $(if $(wildcard $($1_filename)), \
+          $(eval include $($1_filename)) \
+          $(if $(call equals, $(strip $($1)), $(strip $($1_old))),,\
+            $(if $(findstring $(LOG_LEVEL), trace), \
+                $(info NewVariable $1: >$(strip $($1))<) \
+                $(info OldVariable $1: >$(strip $($1_old))<) \
+            ) \
+            $(call DependOnVariableWriteFile,$1) \
+          ) \
+        , \
+          $(call DependOnVariableWriteFile,$1) \
+        ) \
+        $($1_filename) \
+    )
+
+# Main macro
+# Param 1 - Name of variable
+# Param 2 - (optional) name of file to store value in
+DependOnVariable = \
+    $(call DependOnVariableHelper,$(strip $1),$(strip $2))
+
+# LogCmdlines is only intended to be used by ExecuteWithLog
+ifeq ($(LOG_CMDLINES), true)
+  LogCmdlines = $(info $(strip $1))
+else
+  LogCmdlines =
+endif
+
+################################################################################
+# ExecuteWithLog will run a command and log the output appropriately. This is
+# meant to be used by commands that do "real" work, like a compilation.
+# The output is stored in a specified log file, which is displayed at the end
+# of the build in case of failure. The  command line itself is stored in a file,
+# and also logged to stdout if the LOG=cmdlines option has been given.
+#
+# NOTE: If the command redirects stdout, the caller needs to wrap it in a
+# subshell (by adding parentheses around it), otherwise the redirect to the
+# subshell tee process will create a race condition where the target file may
+# not be fully written when the make recipe is done.
+#
+# Param 1 - The path to base the name of the log file / command line file on
+# Param 2 - The command to run
+ExecuteWithLog = \
+  $(call LogCmdlines, Executing: [$(strip $2)]) \
+  $(call MakeDir, $(dir $(strip $1)) $(MAKESUPPORT_OUTPUTDIR)/failure-logs) \
+  $(call WriteFile, $2, $(strip $1).cmdline) \
+  ( $(RM) $(strip $1).log && $(strip $2) > >($(TEE) -a $(strip $1).log) 2> >($(TEE) -a $(strip $1).log >&2) || \
+      ( exitcode=$(DOLLAR)? && \
+      $(CP) $(strip $1).log $(MAKESUPPORT_OUTPUTDIR)/failure-logs/$(subst /,_,$(patsubst $(OUTPUTDIR)/%,%,$(strip $1))).log && \
+      $(CP) $(strip $1).cmdline $(MAKESUPPORT_OUTPUTDIR)/failure-logs/$(subst /,_,$(patsubst $(OUTPUTDIR)/%,%,$(strip $1))).cmdline && \
+      exit $(DOLLAR)exitcode ) )
 
 ################################################################################
 
-define AddFileToCopy
-  # Helper macro for SetupCopyFiles
-  # 1 : Source file
-  # 2 : Dest file
-  # 3 : Variable to add targets to
-  # 4 : Macro to call for copy operation
-  $2: $1
-	$(ECHO) $(LOG_INFO) Copying $$(patsubst $(OUTPUT_ROOT)/%,%,$$@)
-	$$($$(strip $4))
-
-  $3 += $2
-endef
-
-define SetupCopyFiles
-  # param 1 is for example COPY_MYFILES
-  # param 2,3,4,5 are named args.
-  #   SRC     : Source root dir (defaults to dir of first file)
-  #   DEST    : Dest root dir
-  #   FILES   : List of files to copy with absolute paths, or path relative to SRC.
-  #             Must be in SRC.
-  #   FLATTEN : Set to flatten the directory structure in the DEST dir.
-  #   MACRO   : Optionally override the default macro used for making the copy.
-  #             Default is 'install-file'
-  $(foreach i,2 3 4 5 6, $(if $($i),$1_$(strip $($i)))$(NEWLINE))
-  $(call LogSetupMacroEntry,SetupCopyFiles($1),$2,$3,$4,$5,$6)
-  $(if $(7),$(error Internal makefile error: Too many arguments to SetupCopyFiles))
-
-  ifeq ($$($1_MACRO), )
-    $1_MACRO := install-file
-  endif
-
-  # Default SRC to the dir of the first file.
-  ifeq ($$($1_SRC), )
-    $1_SRC := $$(dir $$(firstword $$($1_FILES)))
-  endif
-
-  # Remove any trailing slash from SRC
-  $1_SRC := $$(patsubst %/,%,$$($1_SRC))
-
-  $$(foreach f, $$(patsubst $$($1_SRC)/%,%,$$($1_FILES)), \
-      $$(eval $$(call AddFileToCopy, $$($1_SRC)/$$f, \
-      $$($1_DEST)/$$(if $$($1_FLATTEN),$$(notdir $$f),$$f), $1, $$($1_MACRO))))
-
-endef
-
-################################################################################
+# Hook to include the corresponding custom file, if present.
+$(eval $(call IncludeCustomExtension, common/MakeBase.gmk))
 
 endif # _MAKEBASE_GMK

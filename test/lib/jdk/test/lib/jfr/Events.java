@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.lang.management.ManagementFactory;
 
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.EventType;
@@ -49,7 +48,10 @@ import jdk.jfr.consumer.RecordingFile;
 import jdk.test.lib.Asserts;
 import jdk.jfr.consumer.RecordedClass;
 import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedFrame;
+import jdk.jfr.consumer.RecordedMethod;
 import jdk.jfr.consumer.RecordedObject;
+import jdk.jfr.consumer.RecordedStackTrace;
 import jdk.jfr.consumer.RecordedThread;
 import jdk.jfr.consumer.RecordedThreadGroup;
 
@@ -279,37 +281,14 @@ public class Events {
         return new RecordingFile(makeCopy(r));
     }
 
-    private static String getProcessId(final String fallback) {
-        // Note: may fail in some JVM implementations
-        // therefore fallback has to be provided
-
-        // something like '<pid>@<hostname>', at least in SUN / Oracle JVMs
-       final String jvmName = ManagementFactory.getRuntimeMXBean().getName();
-
-       final int index = jvmName.indexOf('@');
-
-        if (index < 1) {
-            // part before '@' empty (index = 0) / '@' not found (index = -1)
-            return fallback;
-        }
-
-        try {
-            return Long.toString(Long.parseLong(jvmName.substring(0, index)));
-        } catch (NumberFormatException e) {
-            // ignore
-        }
-        return fallback;
-    }
-
     private static Path makeCopy(Recording recording) throws IOException {
         Path p = recording.getDestination();
         if (p == null) {
             File directory = new File(".");
             // FIXME: Must come up with a way to give human-readable name
             // this will at least not clash when running parallel.
-            //ProcessHandle h = ProcessHandle.current();
-            //p = new File(directory.getAbsolutePath(), "recording-" + recording.getId() + "-pid" + h.pid() + ".jfr").toPath();
-            p = new File(directory.getAbsolutePath(), "recording-" + recording.getId() + "-pid" + getProcessId("666") + ".jfr").toPath();
+            ProcessHandle h = ProcessHandle.current();
+            p = new File(directory.getAbsolutePath(), "recording-" + recording.getId() + "-pid" + h.pid() + ".jfr").toPath();
             recording.dump(p);
         }
         return p;
@@ -386,5 +365,22 @@ public class Events {
             }
         }
         return false;
+    }
+
+    public static void assertFrame(RecordedEvent event, Class<?> expectedClass, String expectedMethodName) {
+        RecordedStackTrace stackTrace = event.getStackTrace();
+        Asserts.assertNotNull(stackTrace, "Missing stack trace");
+        for (RecordedFrame frame : stackTrace.getFrames()) {
+            if (frame.isJavaFrame()) {
+                RecordedMethod method = frame.getMethod();
+                RecordedClass type = method.getType();
+                if (expectedClass.getName().equals(type.getName())) {
+                    if (expectedMethodName.equals(method.getName())) {
+                        return;
+                    }
+                }
+            }
+        }
+        Asserts.fail("Expected " + expectedClass.getName() + "::"+ expectedMethodName + " in stack trace");
     }
 }

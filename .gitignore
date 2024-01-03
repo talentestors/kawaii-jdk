@@ -1,6 +1,8 @@
 /build/
 /dist/
 /.idea/
+/.vscode/
+/nbproject/
 nbproject/private/
 /webrev
 /.src-rev
@@ -13,10 +15,11 @@ test/nashorn/lib
 NashornProfile.txt
 **/JTreport/**
 **/JTwork/**
-**/.vscode/**
-./vscode
-<<<<<<< HEAD
-<<<<<<< HEAD
+/src/utils/LogCompilation/target/
+/.project/
+/.settings/
+/compile_commands.json
+/.cache
 **/.hg/**
 config.log
 configure.log

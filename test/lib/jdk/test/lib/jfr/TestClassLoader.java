@@ -34,11 +34,10 @@ import java.io.InputStream;
  * If there are any errors, the parent class loader will be used instead.
  */
 public class TestClassLoader extends ClassLoader {
-    static public final String CLASS_LOADER_NAME = "jdk/test/lib/jfr/TestClassLoader";// XXX since JDK 9 "JFR TestClassLoader";
+    static public final String CLASS_LOADER_NAME = "JFR TestClassLoader";
 
     public TestClassLoader() {
-        //super(CLASS_LOADER_NAME, ClassLoader.getSystemClassLoader());
-        super(ClassLoader.getSystemClassLoader());
+        super(CLASS_LOADER_NAME, ClassLoader.getSystemClassLoader());
     }
 
     public Class<?> loadClass(String name) throws ClassNotFoundException {

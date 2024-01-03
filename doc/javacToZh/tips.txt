@@ -1,4 +1,6 @@
-\jdk8u\langtools\src\share\classes\com\sun\tools\javac\resources
+\src\jdk.jartool\share\classes\sun\tools\jar\resources
+\src\jdk.jconsole\share\classes\sun\tools\jconsole\resources
+\src\jdk.compiler\share\classes\com\sun\tools\javac\resources
 
 tool:
     - http://www.msxindl.com/tools/unicode16.asp

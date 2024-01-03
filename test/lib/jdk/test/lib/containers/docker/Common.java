@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ package jdk.test.lib.containers.docker;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import jdk.test.lib.containers.docker.DockerRunOptions;
 import jdk.test.lib.containers.docker.DockerTestUtils;
 import jdk.test.lib.Utils;
@@ -46,14 +47,18 @@ public class Common {
 
     public static void prepareWhiteBox() throws Exception {
         Files.copy(Paths.get(new File("whitebox.jar").getAbsolutePath()),
-                   Paths.get(Utils.TEST_CLASSES, "whitebox.jar"));
+                   Paths.get(Utils.TEST_CLASSES, "whitebox.jar"), StandardCopyOption.REPLACE_EXISTING);
     }
 
 
     // create simple commonly used options
     public static DockerRunOptions newOpts(String imageNameAndTag) {
         return new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", "-version")
-            .addJavaOpts("-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintContainerInfo");
+            .addJavaOpts("-Xlog:os+container=trace");
+    }
+
+    public static DockerRunOptions newOptsShowSettings(String imageNameAndTag) {
+        return new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", "-version", "-XshowSettings:system");
     }
 
 
@@ -62,8 +67,7 @@ public class Common {
         DockerRunOptions opts =
             new DockerRunOptions(imageNameAndTag, "/jdk/bin/java", testClass);
         opts.addDockerOpts("--volume", Utils.TEST_CLASSES + ":/test-classes/");
-        opts.addJavaOpts("-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintContainerInfo");
-        opts.addJavaOpts("-cp", "/test-classes/");
+        opts.addJavaOpts("-Xlog:os+container=trace", "-cp", "/test-classes/");
         return opts;
     }
 

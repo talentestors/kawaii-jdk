@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -45,29 +45,135 @@ $(info BUILD=$(BUILD))
 
 ARCH := $(word 1,$(subst -, ,$(TARGET)))
 
+ifeq ($(TARGET), arm-linux-gnueabihf)
+  ARCH=armhfp
+endif
+
+$(info ARCH=$(ARCH))
+
+KERNEL_HEADERS_RPM := kernel-headers
+
+ifeq ($(BASE_OS), OL)
+  ifeq ($(ARCH), aarch64)
+    BASE_URL := http://yum.oracle.com/repo/OracleLinux/OL7/6/base/$(ARCH)/
+    LINUX_VERSION := OL7.6
+    KERNEL_HEADERS_RPM := kernel-uek-headers
+  else
+    BASE_URL := http://yum.oracle.com/repo/OracleLinux/OL6/4/base/$(ARCH)/
+    LINUX_VERSION := OL6.4
+  endif
+else ifeq ($(BASE_OS), Fedora)
+  DEFAULT_OS_VERSION := 27
+  ifeq ($(BASE_OS_VERSION), )
+    BASE_OS_VERSION := $(DEFAULT_OS_VERSION)
+  endif
+  ifeq ($(filter x86_64 armhfp, $(ARCH)), )
+    FEDORA_TYPE := fedora-secondary
+  else
+    FEDORA_TYPE := fedora/linux
+  endif
+  ARCHIVED := $(shell [ $(BASE_OS_VERSION) -lt $(DEFAULT_OS_VERSION) ] && echo true)
+  ifeq ($(ARCHIVED),true)
+    BASE_URL := https://archives.fedoraproject.org/pub/archive/$(FEDORA_TYPE)/releases/$(BASE_OS_VERSION)/Everything/$(ARCH)/os/Packages/
+  else
+    BASE_URL := https://dl.fedoraproject.org/pub/$(FEDORA_TYPE)/releases/$(BASE_OS_VERSION)/Everything/$(ARCH)/os/Packages/
+  endif
+  LINUX_VERSION := Fedora_$(BASE_OS_VERSION)
+else
+  $(error Unknown base OS $(BASE_OS))
+endif
+
 ##########################################################################################
 # Define external dependencies
 
 # Latest that could be made to work.
-gcc_ver := gcc-4.8.2
-binutils_ver := binutils-2.24
-ccache_ver := ccache-3.1.9
-mpfr_ver := mpfr-3.0.1
-gmp_ver := gmp-4.3.2
-mpc_ver := mpc-1.0.1
+GCC_VER := 11.2.0
+ifeq ($(GCC_VER), 11.2.0)
+  gcc_ver := gcc-11.2.0
+  binutils_ver := binutils-2.37
+  ccache_ver := ccache-3.7.12
+  mpfr_ver := mpfr-4.1.0
+  gmp_ver := gmp-6.2.1
+  mpc_ver := mpc-1.2.1
+  gdb_ver := gdb-11.1
+  REQUIRED_MIN_MAKE_MAJOR_VERSION := 4
+else ifeq ($(GCC_VER), 10.3.0)
+  gcc_ver := gcc-10.3.0
+  binutils_ver := binutils-2.36.1
+  ccache_ver := ccache-3.7.11
+  mpfr_ver := mpfr-4.1.0
+  gmp_ver := gmp-6.2.0
+  mpc_ver := mpc-1.1.0
+  gdb_ver := gdb-10.1
+  REQUIRED_MIN_MAKE_MAJOR_VERSION := 4
+else ifeq ($(GCC_VER), 10.2.0)
+  gcc_ver := gcc-10.2.0
+  binutils_ver := binutils-2.35
+  ccache_ver := ccache-3.7.11
+  mpfr_ver := mpfr-4.1.0
+  gmp_ver := gmp-6.2.0
+  mpc_ver := mpc-1.1.0
+  gdb_ver := gdb-9.2
+  REQUIRED_MIN_MAKE_MAJOR_VERSION := 4
+else ifeq ($(GCC_VER), 9.2.0)
+  gcc_ver := gcc-9.2.0
+  binutils_ver := binutils-2.34
+  ccache_ver := ccache-3.7.3
+  mpfr_ver := mpfr-3.1.5
+  gmp_ver := gmp-6.1.2
+  mpc_ver := mpc-1.0.3
+  gdb_ver := gdb-8.3
+else ifeq ($(GCC_VER), 8.3.0)
+  gcc_ver := gcc-8.3.0
+  binutils_ver := binutils-2.32
+  ccache_ver := ccache-3.7.3
+  mpfr_ver := mpfr-3.1.5
+  gmp_ver := gmp-6.1.2
+  mpc_ver := mpc-1.0.3
+  gdb_ver := gdb-8.3
+else ifeq ($(GCC_VER), 7.3.0)
+  gcc_ver := gcc-7.3.0
+  binutils_ver := binutils-2.30
+  ccache_ver := ccache-3.3.6
+  mpfr_ver := mpfr-3.1.5
+  gmp_ver := gmp-6.1.2
+  mpc_ver := mpc-1.0.3
+  gdb_ver := gdb-8.1
+else ifeq ($(GCC_VER), 4.9.2)
+  gcc_ver := gcc-4.9.2
+  binutils_ver := binutils-2.25
+  ccache_ver := ccache-3.2.1
+  mpfr_ver := mpfr-3.0.1
+  gmp_ver := gmp-4.3.2
+  mpc_ver := mpc-1.0.1
+  gdb_ver := gdb-7.12.1
+else
+  $(error Unsupported GCC version)
+endif
 
-GCC := http://ftp.gnu.org/pub/gnu/gcc/$(gcc_ver)/$(gcc_ver).tar.bz2
-BINUTILS := http://ftp.gnu.org/pub/gnu/binutils/$(binutils_ver).tar.bz2
-CCACHE := http://samba.org/ftp/ccache/$(ccache_ver).tar.gz
-MPFR := http://www.mpfr.org/${mpfr_ver}/${mpfr_ver}.tar.bz2
+ifneq ($(REQUIRED_MIN_MAKE_MAJOR_VERSION),)
+  MAKE_MAJOR_VERSION := $(word 1,$(subst ., ,$(MAKE_VERSION)))
+  SUPPORTED_MAKE_VERSION := $(shell [ $(MAKE_MAJOR_VERSION) -ge $(REQUIRED_MIN_MAKE_MAJOR_VERSION) ] && echo true)
+  ifneq ($(SUPPORTED_MAKE_VERSION),true)
+    $(error "Make v$(MAKE_VERSION) is too old, must use v$(REQUIRED_MIN_MAKE_MAJOR_VERSION) or above")
+  endif
+endif
+
+ccache_ver_only := $(patsubst ccache-%,%,$(ccache_ver))
+
+
+GCC := http://ftp.gnu.org/pub/gnu/gcc/$(gcc_ver)/$(gcc_ver).tar.xz
+BINUTILS := http://ftp.gnu.org/pub/gnu/binutils/$(binutils_ver).tar.gz
+CCACHE := https://github.com/ccache/ccache/releases/download/v$(ccache_ver_only)/$(ccache_ver).tar.xz
+MPFR := https://www.mpfr.org/${mpfr_ver}/${mpfr_ver}.tar.bz2
 GMP := http://ftp.gnu.org/pub/gnu/gmp/${gmp_ver}.tar.bz2
-MPC := http://www.multiprecision.org/mpc/download/${mpc_ver}.tar.gz
+MPC := http://ftp.gnu.org/pub/gnu/mpc/${mpc_ver}.tar.gz
+GDB := http://ftp.gnu.org/gnu/gdb/${gdb_ver}.tar.xz
 
-# RPMs in OEL5.5
-LINUX_VERSION := OEL5.5
+# RPMs used by all BASE_OS
 RPM_LIST := \
-    kernel-headers \
-    glibc-2 glibc-headers glibc-devel \
+    $(KERNEL_HEADERS_RPM) \
+    glibc glibc-headers glibc-devel \
     cups-libs cups-devel \
     libX11 libX11-devel \
     xorg-x11-proto-devel \
@@ -75,6 +181,7 @@ RPM_LIST := \
     libXext libXext-devel \
     libXtst libXtst-devel \
     libXrender libXrender-devel \
+    libXrandr libXrandr-devel \
     freetype freetype-devel \
     libXt libXt-devel \
     libSM libSM-devel \
@@ -82,29 +189,12 @@ RPM_LIST := \
     libXi libXi-devel \
     libXdmcp libXdmcp-devel \
     libXau libXau-devel \
-    libgcc
-
-
-ifeq ($(ARCH),x86_64)
-  RPM_DIR ?= $(RPM_DIR_x86_64)
-  RPM_ARCHS := x86_64
-  ifeq ($(BUILD),$(HOST))
-    ifeq ($(TARGET),$(HOST))
-      # When building the native compiler for x86_64, enable mixed mode.
-      RPM_ARCHS += i386 i686
-    endif
-  endif
-else
-  RPM_DIR ?= $(RPM_DIR_i686)
-  RPM_ARCHS := i386 i686
-endif
-
-# Sort to remove duplicates
-RPM_FILE_LIST := $(sort $(foreach a,$(RPM_ARCHS),$(wildcard $(patsubst %,$(RPM_DIR)/%*$a.rpm,$(RPM_LIST)))))
-
-ifeq ($(RPM_FILE_LIST),)
-  $(error Found no RPMs, RPM_DIR must point to list of directories to search for RPMs)
-endif
+    libgcc \
+    zlib zlib-devel \
+    libffi libffi-devel \
+    fontconfig fontconfig-devel \
+    systemtap-sdt-devel \
+    #
 
 ##########################################################################################
 # Define common directories and files
@@ -118,12 +208,11 @@ else
 endif
 
 # Define directories
-RESULT := $(OUTPUT_ROOT)/result
 BUILDDIR := $(OUTPUT_ROOT)/$(HOST)/$(TARGET)
-PREFIX := $(RESULT)/$(HOST)
 TARGETDIR := $(PREFIX)/$(TARGET)
 SYSROOT := $(TARGETDIR)/sysroot
 DOWNLOAD := $(OUTPUT_ROOT)/download
+DOWNLOAD_RPMS := $(DOWNLOAD)/rpms/$(TARGET)-$(LINUX_VERSION)
 SRCDIR := $(OUTPUT_ROOT)/src
 
 # Marker file for unpacking rpms
@@ -132,19 +221,31 @@ rpms := $(SYSROOT)/rpms_unpacked
 # Need to patch libs that are linker scripts to use non-absolute paths
 libs := $(SYSROOT)/libs_patched
 
+################################################################################
+# Download RPMs
+download-rpms:
+	mkdir -p $(DOWNLOAD_RPMS)
+        # Only run this if rpm dir is empty.
+        ifeq ($(wildcard $(DOWNLOAD_RPMS)/*.rpm), )
+	  cd $(DOWNLOAD_RPMS) && \
+	      wget -r -np -nd $(patsubst %, -A "*%*.rpm", $(RPM_LIST)) $(BASE_URL)
+        endif
+
 ##########################################################################################
 # Unpack source packages
 
 # Generate downloading + unpacking of sources.
 define Download
-  $(1)_DIR = $(abspath $(SRCDIR)/$(basename $(basename $(notdir $($(1))))))
+  # Allow override
+  $(1)_DIRNAME ?= $(basename $(basename $(notdir $($(1)))))
+  $(1)_DIR = $(abspath $(SRCDIR)/$$($(1)_DIRNAME))
   $(1)_CFG = $$($(1)_DIR)/configure
   $(1)_FILE = $(DOWNLOAD)/$(notdir $($(1)))
 
   $$($(1)_CFG) : $$($(1)_FILE)
 	mkdir -p $$(SRCDIR)
-	tar -C $$(SRCDIR) -x$$(if $$(findstring .gz, $$<),z,j)f $$<
-	$$(foreach p,$$(abspath $$(wildcard $$(notdir $$($(1)_DIR)).patch)), \
+	tar -C $$(SRCDIR) -xf $$<
+	$$(foreach p,$$(abspath $$(wildcard patches/$$(notdir $$($(1)_DIR)).patch)), \
 	  echo PATCHING $$(p) ; \
 	  patch -d $$($(1)_DIR) -p1 -i $$(p) ; \
 	)
@@ -155,15 +256,28 @@ define Download
 endef
 
 # Download and unpack all source packages
-$(foreach p,GCC BINUTILS CCACHE MPFR GMP MPC,$(eval $(call Download,$(p))))
+$(foreach p,GCC BINUTILS CCACHE MPFR GMP MPC GDB,$(eval $(call Download,$(p))))
 
 ##########################################################################################
 # Unpack RPMS
 
+RPM_ARCHS := $(ARCH) noarch
+ifeq ($(ARCH),x86_64)
+  # Enable mixed mode.
+  RPM_ARCHS += i386 i686
+else ifeq ($(ARCH),i686)
+  RPM_ARCHS += i386
+else ifeq ($(ARCH), armhfp)
+  RPM_ARCHS += armv7hl
+endif
+
+RPM_FILE_LIST := $(sort $(foreach a, $(RPM_ARCHS), \
+  $(wildcard $(patsubst %,$(DOWNLOAD_RPMS)/%*$a.rpm,$(RPM_LIST))) \
+))
+
 # Note. For building linux you should install rpm2cpio.
 define unrpm
-  $(SYSROOT)/$(notdir $(1)).unpacked \
-    : $(1)
+  $(SYSROOT)/$(notdir $(1)).unpacked : $(1)
   $$(rpms) : $(SYSROOT)/$(notdir $(1)).unpacked
 endef
 
@@ -204,9 +318,22 @@ $(libs) : $(rpms)
 	@touch $@
 
 ##########################################################################################
+# Create links for ffi header files so that they become visible by default when using the
+# devkit.
+ifeq ($(ARCH), x86_64)
+  $(SYSROOT)/usr/include/ffi.h: $(rpms)
+	cd $(@D) && rm -f $(@F) && ln -s ../lib/libffi-*/include/$(@F) .
+
+  $(SYSROOT)/usr/include/ffitarget.h: $(rpms)
+	cd $(@D) && rm -f $(@F) && ln -s ../lib/libffi-*/include/$(@F) .
+
+  SYSROOT_LINKS += $(SYSROOT)/usr/include/ffi.h $(SYSROOT)/usr/include/ffitarget.h
+endif
+
+##########################################################################################
 
 # Define marker files for each source package to be compiled
-$(foreach t,binutils mpfr gmp mpc gcc ccache,$(eval $(t) = $(TARGETDIR)/$($(t)_ver).done))
+$(foreach t,binutils mpfr gmp mpc gcc ccache gdb,$(eval $(t) = $(TARGETDIR)/$($(t)_ver).done))
 
 ##########################################################################################
 
@@ -215,10 +342,11 @@ CONFIG = --target=$(TARGET) \
     --host=$(HOST) --build=$(BUILD) \
     --prefix=$(PREFIX)
 
-PATHEXT = $(RESULT)/$(BUILD)/bin:
+PATHEXT = $(PREFIX)/bin:
 
 PATHPRE = PATH=$(PATHEXT)$(PATH)
-BUILDPAR = -j16
+NUM_CORES := $(shell cat /proc/cpuinfo | grep -c processor)
+BUILDPAR = -j$(NUM_CORES)
 
 # Default commands to when making
 MAKECMD =
@@ -287,6 +415,7 @@ $(gcc) \
 $(BUILDDIR)/$(binutils_ver)/Makefile : CONFIG += --enable-64-bit-bfd --libdir=$(PREFIX)/$(word 1,$(LIBDIRS))
 
 # Makefile creation. Simply run configure in build dir.
+# Setting CFLAGS to -O2 generates a much faster ld.
 $(bfdmakes) \
 $(BUILDDIR)/$(binutils_ver)/Makefile \
     : $(BINUTILS_CFG)
@@ -294,13 +423,16 @@ $(BUILDDIR)/$(binutils_ver)/Makefile \
 	@mkdir -p $(@D)
 	( \
 	  cd $(@D) ; \
-	  $(PATHPRE) $(ENVS) CFLAGS="$(CFLAGS)" \
+	  $(PATHPRE) $(ENVS) CFLAGS="-O2 $(CFLAGS)" \
 	      $(BINUTILS_CFG) \
 	      $(CONFIG) \
 	      --with-sysroot=$(SYSROOT) \
 	      --disable-nls \
 	      --program-prefix=$(TARGET)- \
 	      --enable-multilib \
+	      --enable-gold=default \
+	      --enable-threads \
+	      --enable-plugins \
 	) > $(@D)/log.config 2>&1
 	@echo 'done'
 
@@ -358,6 +490,15 @@ ifneq (,$(findstring linux,$(TARGET)))
   $(BUILDDIR)/$(gcc_ver)/Makefile : CONFIG += --enable-__cxa_atexit
 endif
 
+ifeq ($(ARCH), armhfp)
+  $(BUILDDIR)/$(gcc_ver)/Makefile : CONFIG +=  --with-float=hard
+endif
+
+ifneq ($(filter ppc64 ppc64le s390x, $(ARCH)), )
+  # We only support 64-bit on these platforms anyway
+  CONFIG += --disable-multilib
+endif
+
 # Want:
 # c,c++
 # shared libs
@@ -376,7 +517,6 @@ $(BUILDDIR)/$(gcc_ver)/Makefile \
 	      --with-sysroot=$(SYSROOT) \
 	      --enable-languages=c,c++ \
 	      --enable-shared \
-	      --enable-multilib \
 	      --disable-nls \
 	      --with-gnu-as \
 	      --with-gnu-ld \
@@ -393,6 +533,29 @@ $(gcc) : $(binutils)
 $(BUILDDIR)/$(gcc_ver)/Makefile : $(gmp) $(mpfr) $(mpc)
 $(mpfr) : $(gmp)
 $(mpc) : $(gmp) $(mpfr)
+
+################################################################################
+# Build gdb but only where host and target match
+ifeq ($(HOST), $(TARGET))
+  $(BUILDDIR)/$(gdb_ver)/Makefile: $(GDB_CFG)
+	$(info Configuring $@. Log in $(@D)/log.config)
+	mkdir -p $(@D)
+	( \
+	  cd $(@D) ; \
+	  $(PATHPRE) $(ENVS) CFLAGS="$(CFLAGS)" $(GDB_CFG) \
+	      $(CONFIG) \
+	      --with-sysroot=$(SYSROOT) \
+	) > $(@D)/log.config 2>&1
+	@echo 'done'
+
+  $(gdb): $(gcc)
+else
+  $(BUILDDIR)/$(gdb_ver)/Makefile:
+	$(info Faking $@, not used when cross-compiling)
+	mkdir -p $(@D)
+	echo "install:" > $@
+	@echo 'done'
+endif
 
 ##########################################################################################
 # very straightforward. just build a ccache. it is only for host.
@@ -418,7 +581,7 @@ ifeq ($(HOST),$(TARGET))
 	  if [ ! -e $(PREFIX)/bin/$(TARGET)-$$f ]; \
 	  then \
 	    cd $(PREFIX)/bin && \
-	    ln -s $$f $(TARGET)-$$f ; \
+	    ln -fs $$f $(TARGET)-$$f ; \
 	  fi \
 	done
 	@touch $@
@@ -435,7 +598,7 @@ ifeq ($(HOST),$(TARGET))
 	  if [ ! -e $(TARGETDIR)/$(l)/$$f ]; then \
 	    mkdir -p $(TARGETDIR)/$(l) && \
 	    cd $(TARGETDIR)/$(l)/ && \
-	    ln -s $(if $(findstring /,$(l)),../,)../../$(l)/$$f $$f; \
+	    ln -fs $(if $(findstring /,$(l)),../,)../../$(l)/$$f $$f; \
 	  fi \
 	done;)
 	@echo 'done'
@@ -455,12 +618,13 @@ $(TARGETDIR)/%.done : $(BUILDDIR)/%/Makefile
 	$(PATHPRE) $(ENVS) $(MAKE) $(BUILDPAR) -f $< -C $(<D) $(MAKECMD) $(MAKECMD.$(notdir $@)) > $(<D)/log.build 2>&1
 	@echo -n 'installing...'
 	$(PATHPRE) $(MAKE) $(INSTALLPAR) -f $< -C $(<D) $(INSTALLCMD) $(MAKECMD.$(notdir $@)) > $(<D)/log.install 2>&1
+	@mkdir -p $(@D)
 	@touch $@
 	@echo 'done'
 
 ##########################################################################################
 
-$(PREFIX)/devkit.info: FRC
+$(PREFIX)/devkit.info:
 	@echo 'Creating devkit.info in the root of the kit'
 	rm -f $@
 	touch $@
@@ -469,7 +633,40 @@ $(PREFIX)/devkit.info: FRC
 	echo '' >> $@
 	echo 'DEVKIT_NAME="$(gcc_ver) - $(LINUX_VERSION)"' >> $@
 	echo 'DEVKIT_TOOLCHAIN_PATH="$$DEVKIT_ROOT/bin"' >> $@
-	echo 'DEVKIT_SYSROOT="$$DEVKIT_ROOT/$$host/sysroot"' >> $@
+	echo 'DEVKIT_SYSROOT="$$DEVKIT_ROOT/$(TARGET)/sysroot"' >> $@
+	echo 'DEVKIT_EXTRA_PATH="$$DEVKIT_ROOT/bin"' >> $@
+
+##########################################################################################
+# Copy these makefiles into the root of the kit
+$(PREFIX)/Makefile: ./Makefile
+	rm -rf $@
+	cp $< $@
+
+$(PREFIX)/Tools.gmk: ./Tools.gmk
+	rm -rf $@
+	cp $< $@
+
+THESE_MAKEFILES := $(PREFIX)/Makefile $(PREFIX)/Tools.gmk
+
+##########################################################################################
+
+ifeq ($(TARGET), $(HOST))
+  # To build with dtrace support, the build needs access to the dtrace executable from the
+  # sysroot. Generally we don't want to add binaries in the sysroot to the path, but
+  # luckily this seems to execute well enough on a different host Linux distro, so symlink
+  # it into the main bin dir.
+  $(PREFIX)/bin/dtrace:
+	@echo 'Creating dtrace soft link'
+	ln -s ../$(HOST)/sysroot/usr/bin/dtrace $@
+
+  $(PREFIX)/bin/%:
+	@echo 'Creating missing $* soft link'
+	ln -s $(TARGET)-$* $@
+
+  missing-links := $(addprefix $(PREFIX)/bin/, \
+      addr2line ar as c++ c++filt dwp elfedit g++ gcc gcc-$(GCC_VER) gprof ld ld.bfd \
+      ld.gold nm objcopy objdump ranlib readelf size strings strip)
+endif
 
 ##########################################################################################
 
@@ -479,12 +676,11 @@ rpms : $(rpms)
 libs : $(libs)
 sysroot : rpms libs
 gcc : sysroot $(gcc) $(gccpatch)
-all : binutils gcc bfdlib $(PREFIX)/devkit.info
+gdb : $(gdb)
+all : binutils gcc bfdlib $(PREFIX)/devkit.info $(missing-links) $(SYSROOT_LINKS) \
+    $(THESE_MAKEFILES) gdb
 
 # this is only built for host. so separate.
 ccache : $(ccache)
-
-# Force target
-FRC:
 
 .PHONY : gcc all binutils bfdlib link_libs rpms libs sysroot
