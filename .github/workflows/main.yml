@@ -122,7 +122,7 @@ jobs:
         run: |
           JDK_VERSION="${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_INTERIM }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_UPDATE }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_PATCH }}"
           echo "JDK_VERSION=$JDK_VERSION" >> $GITHUB_ENV
-        if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
+        if: steps.check_deps.outputs != ''
   ###
   ### Build jobs
   ###
