@@ -143,4 +143,5 @@ jobs:
           retention-days: 1
           path: |
             jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip
+          working-directory: build/${{ inputs.platform }}/images
   
