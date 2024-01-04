@@ -142,6 +142,5 @@ jobs:
           name: jdk-${{ inputs.platform }}
           retention-days: 1
           path: |
-            jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip
-          working-directory: build/${{ inputs.platform }}/images
+            build/${{ inputs.platform }}/images/jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip
   
