@@ -56,6 +56,7 @@ jobs:
       linux-x64: ${{ steps.include.outputs.linux-x64 }}
       macos-x64: ${{ steps.include.outputs.macos-x64 }}
       windows-x64: ${{ steps.include.outputs.windows-x64 }}
+      JDK_VERSION: ${{ steps.set_ver.outputs.JDK_VERSION }}
 
     steps:
         # This function must be inlined in main.yml, or we'd be forced to checkout the repo
@@ -114,14 +115,13 @@ jobs:
       - name: Determine versions and locations to be used for dependencies
         id: check_deps
         run: "echo dependencies=`cat make/conf/version-numbers.conf | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
-        working-directory: jdk
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
 
       - name: Set JDK_VERSION 
+        id: set_ver
         run: |
           JDK_VERSION="${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_INTERIM }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_UPDATE }}.${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_PATCH }}"
           echo "JDK_VERSION=$JDK_VERSION" >> $GITHUB_ENV
-        working-directory: jdk
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
   ###
   ### Build jobs

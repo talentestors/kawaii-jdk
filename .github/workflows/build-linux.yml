@@ -54,7 +54,7 @@ on:
       JDK_VERSION:
         required: false
         type: string
-        default: '17-0-8-1'
+        default: '17.0.8.1'
 
 jobs:
   build-linux:

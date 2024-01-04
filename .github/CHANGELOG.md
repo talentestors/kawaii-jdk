@@ -4,7 +4,9 @@
 
 Action Test.
 
-version tag 1.0.2-beta
+JDK Version: 17-0-8-1
+
+version tag 1.0.3-beta
 
 #### include
 
