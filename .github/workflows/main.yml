@@ -128,8 +128,7 @@ jobs:
           JDK_VERSION_INTERIM=${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_INTERIM }}
           JDK_VERSION_UPDATE=${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_UPDATE }}
           JDK_VERSION_PATCH=${{ fromJson(steps.check_deps.outputs.dependencies).DEFAULT_VERSION_PATCH }}
-          JDK_VERSION=$JDK_VERSION_FEATURE.$JDK_VERSION_INTERIM.$JDK_VERSION_UPDATE.$JDK_VERSION_PATCH 
-          echo $JDK_VERSION >> $GITHUB_OUTPUT
+          echo JDK_VERSION=$JDK_VERSION_FEATURE.$JDK_VERSION_INTERIM.$JDK_VERSION_UPDATE.$JDK_VERSION_PATCH >> $GITHUB_OUTPUT
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
 
   ###
