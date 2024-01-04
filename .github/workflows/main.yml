@@ -112,20 +112,22 @@ jobs:
           path: jdk
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
   
+      - name: Show dirictory
+        run: |
+          ls -la jdk
+      
       - name: Determine versions and locations to be used for dependencies
         id: check_deps
-        run: |
-          ls -la
-          "echo dependencies=`cat make/conf/version-numbers.conf | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
+        run: "echo dependencies=`cat jdk/make/conf/version-numbers.conf | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
 
       - name: Show versions
         id: show_versions
         run: |
-          echo "JDK_VERSION_FEATURE=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_FEATURE | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`" 
-          echo "JDK_VERSION_INTERIM=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_INTERIM | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`" 
-          echo "JDK_VERSION_UPDATE=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_UPDATE | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`"
-          echo "JDK_VERSION_PATCH=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_PATCH | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`"
+          echo "JDK_VERSION_FEATURE=`cat jdk/make/conf/version-numbers.conf | grep DEFAULT_VERSION_FEATURE | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`" 
+          echo "JDK_VERSION_INTERIM=`cat jdk/make/conf/version-numbers.conf | grep DEFAULT_VERSION_INTERIM | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`" 
+          echo "JDK_VERSION_UPDATE=`cat jdk/make/conf/version-numbers.conf | grep DEFAULT_VERSION_UPDATE | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`"
+          echo "JDK_VERSION_PATCH=`cat jdk/make/conf/version-numbers.conf | grep DEFAULT_VERSION_PATCH | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`"
           echo JDK_VERSION=$JDK_VERSION_FEATURE.$JDK_VERSION_INTERIM.$JDK_VERSION_UPDATE.$JDK_VERSION_PATCH >> $GITHUB_OUTPUT
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
 
