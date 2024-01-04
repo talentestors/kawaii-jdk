@@ -114,7 +114,9 @@ jobs:
   
       - name: Determine versions and locations to be used for dependencies
         id: check_deps
-        run: "echo dependencies=`cat make/conf/version-numbers.conf | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
+        run: |
+          ls -la
+          "echo dependencies=`cat make/conf/version-numbers.conf | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
 
       - name: Show versions
