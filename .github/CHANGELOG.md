@@ -6,7 +6,7 @@ Support for JDK 17
 
 JDK Version: 17-0-8-1
 
-version tag 1.1.1-beta
+version tag 1.1.2-beta
 
 #### include
 
