@@ -126,7 +126,7 @@ jobs:
 
       - name: 'Pack artifacts'
         run: |
-         tar -czf jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C jdk/build/${{ inputs.platform }}/images/ ./
+         tar -czf jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C $build_dir/${{ inputs.platform }}/images/ ./
   
       - name: Upload arartifact
         uses: actions/upload-artifact@v3

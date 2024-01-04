@@ -32,9 +32,6 @@ inputs:
   platform:
     description: 'Platform name'
     required: true
-  debug-suffix:
-    description: 'File name suffix denoting debug level, possibly empty'
-    required: false
 
 runs:
   using: composite

@@ -53,8 +53,8 @@ jobs:
     outputs:
       dependencies: ${{ steps.check_deps.outputs.dependencies }}
       linux-x64: ${{ steps.include.outputs.linux-x64 }}
-      macos-x64: ${{ steps.include.outputs.macos-x64 }}
-      windows-x64: ${{ steps.include.outputs.windows-x64 }}
+      # macos-x64: ${{ steps.include.outputs.macos-x64 }}
+      # windows-x64: ${{ steps.include.outputs.windows-x64 }}
 
     steps:
         # This function must be inlined in main.yml, or we'd be forced to checkout the repo
@@ -168,8 +168,8 @@ jobs:
     
     needs:
       - select
-      - build-windows-x64
-      - build-macos-x64
+      # - build-windows-x64
+      # - build-macos-x64
       - build-linux-x64
 
     steps:
