@@ -113,12 +113,11 @@ jobs:
 
       - name: show dirictory
         run: |
-          ls -la build/
-          ls -la $build_dir
+          ls -la build/${{ inputs.platform }}
      
       - name: 'Pack artifacts'
         run: |
-          tar -czf jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C $build_dir/images/ ./
+          tar -czf jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.tar.gz -C build/${{ inputs.platform }}/images/ ./
 
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
