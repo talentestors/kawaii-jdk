@@ -2,7 +2,7 @@
 
 ### Beta Test
 
-Action Test.
+Support for JDK 17
 
 JDK Version: 17-0-8-1
 
