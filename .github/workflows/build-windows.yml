@@ -131,7 +131,10 @@ jobs:
           "jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip"
           ./
         working-directory: build/${{ inputs.platform }}/images
-  
+
+      - name: show dirictory
+        run: |
+          ls -la 
   
       - name: 'Upload arartifact'
         uses: actions/upload-artifact@v3

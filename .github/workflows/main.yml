@@ -53,8 +53,8 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       dependencies: ${{ steps.check_deps.outputs.dependencies }}
-      linux-x64: ${{ steps.include.outputs.linux-x64 }}
-      macos-x64: ${{ steps.include.outputs.macos-x64 }}
+      # linux-x64: ${{ steps.include.outputs.linux-x64 }}
+      # macos-x64: ${{ steps.include.outputs.macos-x64 }}
       windows-x64: ${{ steps.include.outputs.windows-x64 }}
       JDK_VERSION: ${{ steps.show_versions.outputs.JDK_VERSION }}
 
