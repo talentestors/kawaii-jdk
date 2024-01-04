@@ -128,9 +128,7 @@ jobs:
         run: |
           dir ;
           zip -r9
-          "${{ github.workspace }}/jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip"
-          ./
-        working-directory: build/${{ inputs.platform }}/images/
+          "jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip" build/${{ inputs.platform }}/images/*
   
       - name: Upload arartifact
         uses: actions/upload-artifact@v3
