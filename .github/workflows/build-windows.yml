@@ -125,12 +125,15 @@ jobs:
           platform: ${{ inputs.platform }}
 
       - name: 'Pack artifacts'
-        run: |
+        run: >
           dir ;
           zip -r9
-          "jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip" build/${{ inputs.platform }}/images/*
+          "jdk-${{ inputs.JDK_VERSION }}-${{ inputs.platform }}.zip"
+          ./
+        working-directory: build/${{ inputs.platform }}/images
   
-      - name: Upload arartifact
+  
+      - name: 'Upload arartifact'
         uses: actions/upload-artifact@v3
         with:
           name: jdk-${{ inputs.platform }}
