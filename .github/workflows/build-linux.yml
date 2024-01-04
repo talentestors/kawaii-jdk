@@ -110,10 +110,6 @@ jobs:
         with:
           make-target: '${{ inputs.make-target }}'
           platform: ${{ inputs.platform }}
-
-      - name: show dirictory
-        run: |
-          ls -la build/${{ inputs.platform }}
      
       - name: 'Pack artifacts'
         run: |

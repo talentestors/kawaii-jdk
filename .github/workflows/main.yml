@@ -27,9 +27,10 @@ name: 'OpenJDK GHA Sanity Checks'
 
 on:
   push:
-    branches-ignore:
-      - pr/*
-      - jdk-1.8
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - "*.*.*"
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
   workflow_dispatch:
     inputs:
       platforms:
@@ -168,8 +169,8 @@ jobs:
     
     needs:
       - select
-      # - build-windows-x64
-      # - build-macos-x64
+      - build-windows-x64
+      - build-macos-x64
       - build-linux-x64
 
     steps:
@@ -185,20 +186,20 @@ jobs:
         run: |
           ls -la 
 
-      # - name: Upload Release
-      #   uses: softprops/action-gh-release@v1
-      #   if: startsWith(github.ref, 'refs/tags/')
-      #   env:
-      #     GITHUB_REPOSITORY: talentestors/kawaii-jdk8
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     tag_name: ${{ github.ref }}
-      #     name: Release ${{ github.ref_name }}
-      #     body_path: .github/CHANGELOG.md
-      #     draft: false
-      #     fail_on_unmatched_files: true
-      #     prerelease: false
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     files: |
-      #       msjdk/*/*.tar.gz
-      #       msjdk/*/*.zip
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_REPOSITORY: talentestors/kawaii-jdk8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
+          body_path: .github/CHANGELOG.md
+          draft: false
+          fail_on_unmatched_files: true
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            msjdk/*/*.tar.gz
+            msjdk/*/*.zip
