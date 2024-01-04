@@ -36,7 +36,7 @@ on:
       platforms:
         description: 'Platform(s) to execute on (comma separated, e.g. "linux-x64, macos")'
         required: true
-        default: 'linux-x64, linux-x86 macos-x64, macos-aarch64, windows-x64'
+        default: 'linux-x64, macos-x64, windows-x64'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -56,6 +56,7 @@ jobs:
       linux-x64: ${{ steps.include.outputs.linux-x64 }}
       macos-x64: ${{ steps.include.outputs.macos-x64 }}
       windows-x64: ${{ steps.include.outputs.windows-x64 }}
+      JDK_VERSION: ${{ steps.check_deps.outputs.JDK_VERSION }}
 
     steps:
         # This function must be inlined in main.yml, or we'd be forced to checkout the repo
@@ -116,6 +117,16 @@ jobs:
         run: "echo dependencies=`cat make/conf/version-numbers.conf | sed -e '1i {' -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\"\\1\": \"\\2\",/g' -e '$s/,\\s\\{0,\\}$/\\}/'` >> $GITHUB_OUTPUT"
         if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
 
+      - name: Show versions
+        id: show_versions
+        run: |
+          echo "JDK_VERSION_FEATURE=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_FEATURE | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`" 
+          echo "JDK_VERSION_INTERIM=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_INTERIM | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`" 
+          echo "JDK_VERSION_UPDATE=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_UPDATE | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`"
+          echo "JDK_VERSION_PATCH=`cat make/conf/version-numbers.conf | grep DEFAULT_VERSION_PATCH | sed -e 's/#.*//g' -e 's/\"//g' -e 's/\\(.*\\)=\\(.*\\)/\\2/g'`"
+          echo JDK_VERSION=$JDK_VERSION_FEATURE.$JDK_VERSION_INTERIM.$JDK_VERSION_UPDATE.$JDK_VERSION_PATCH >> $GITHUB_OUTPUT
+        if: steps.include.outputs.linux-x64 == 'true' || steps.include.outputs.linux-x86 == 'true' || steps.include.outputs.macos-x64 == 'true' || steps.include.outputs.windows-x64 == 'true'
+
   ###
   ### Build jobs
   ###
@@ -127,7 +138,7 @@ jobs:
     with:
       platform: linux-x64
       apt-gcc-version: '11'
-      JDK_VERSION: ${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_INTERIM }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_UPDATE }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_PATCH }}
+      JDK_VERSION: ${{ needs.select.outputs.JDK_VERSION }}
     # The linux-x64 jdk bundle is used as buildjdk for the cross-compile job
     if: needs.select.outputs.linux-x64 == 'true'
 
@@ -138,7 +149,7 @@ jobs:
     with:
       platform: macos-x64
       xcode-toolset-version: '11.7'
-      JDK_VERSION: ${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_INTERIM }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_UPDATE }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_PATCH }}
+      JDK_VERSION: ${{ needs.select.outputs.JDK_VERSION }}
     if: needs.select.outputs.macos-x64 == 'true'
 
   build-windows-x64:
@@ -149,7 +160,7 @@ jobs:
       platform: windows-x64
       msvc-toolset-version: '14.29'
       msvc-toolset-architecture: 'x86.x64'
-      JDK_VERSION: ${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_INTERIM }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_UPDATE }}.${{ fromJson(needs.select.outputs.dependencies).DEFAULT_VERSION_PATCH }}
+      JDK_VERSION: ${{ needs.select.outputs.JDK_VERSION }}
     if: needs.select.outputs.windows-x64 == 'true'
 
   Release:
